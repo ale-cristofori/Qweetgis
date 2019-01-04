@@ -1,0 +1,39 @@
+# This file contains metadata for your plugin. Since 
+# version 2.0 of QGIS this is the proper way to supply 
+# information about a plugin. The old method of 
+# embedding metadata in __init__.py will 
+# is no longer supported since version 2.0.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=Threading Master
+qgisMinimumVersion=3.0
+description=A QGIS Plugin with threading
+version=0.1
+author=Alessandro Cristofori
+email=alessandro.cristofori@halliburton.com
+
+about=This is a test plugin made for the tutorial about threading in QGIS
+
+tracker=https://github.com/ale-cristofori/qgis-threading-master
+repository=https://github.com/ale-cristofori/qgis-threading-master
+# End of mandatory metadata
+
+# Recommended items:
+
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=python
+
+homepage=http://homepage
+category=Plugins
+icon=icon.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+

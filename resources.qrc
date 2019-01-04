@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/threading_master" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
