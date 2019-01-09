@@ -1,0 +1,26 @@
+{
+    "DEV": {
+        "CREDENTIALS": {
+            "CONSUMER_KEY": "",
+            "CONSUMER_KEY_SECRET": "",
+            "ACCESS_TOKEN": "",
+            "ACCESS_TOKEN_SECRET": ""
+        }
+    },
+    "PROD": {
+        "CREDENTIALS": {
+            "CONSUMER_KEY": "",
+            "CONSUMER_KEY_SECRET": "",
+            "ACCESS_TOKEN": "",
+            "ACCESS_TOKEN_SECRET": ""
+        }
+    },
+    "TEST": {
+        "CREDENTIALS": {
+            "CONSUMER_KEY": "",
+            "CONSUMER_KEY_SECRET": "",
+            "ACCESS_TOKEN": "",
+            "ACCESS_TOKEN_SECRET": ""
+        }
+    }
+}

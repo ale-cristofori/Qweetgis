@@ -48,7 +48,7 @@ PY_FILES = \
 
 UI_FILES = threading_master_dialog_base.ui
 
-EXTRAS = metadata.txt icon.png
+EXTRAS = metadata.txt icon.svg
 
 EXTRA_DIRS =
 

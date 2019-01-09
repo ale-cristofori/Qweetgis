@@ -31,7 +31,7 @@ class ThreadingMasterDialogTest(unittest.TestCase):
 
     def test_icon_png(self):
         """Test we can click OK."""
-        path = ':/plugins/ThreadingMaster/icon.png'
+        path = ':/plugins/ThreadingMaster/icon.svg'
         icon = QIcon(path)
         self.assertFalse(icon.isNull())
 

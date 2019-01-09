@@ -26,25 +26,28 @@ import pdb
 import tweepy
 import datetime
 import os.path
+import simplejson
 # import qgis.utils
 from abc import abstractmethod
 from sys import platform
 from qgis.core import QgsProject, QgsWkbTypes, QgsVectorLayer 
 # Initialize Qt resources from file resources.py
-from .resources import *
-from PyQt5.QtGui import QIcon, QColor, QDoubleValidator
-from PyQt5.QtWidgets import QAction, QStyle, QApplication, \
-    QMessageBox, QFileDialog
+from ..resources import *
+from PyQt5.QtGui import QIcon, QColor, QDoubleValidator, QPixmap
+from PyQt5.QtWidgets import QAction, QStyle, QApplication, QFileDialog
 from PyQt5.QtCore import QObject, QSettings, QTranslator, qVersion, QCoreApplication, \
-    pyqtSlot, pyqtRemoveInputHook, pyqtSignal
-from .mod_tweepy import TweetsHandler, GeoStreamListener, \
+    pyqtSlot, pyqtRemoveInputHook, pyqtSignal, Qt
+from ..authentication.oauth_credentials import OauthCredentials
+from ..authentication.credentials_validator import CredentialsValidator
+from ..authentication.mod_tweepy import TweetsHandler, GeoStreamListener, \
     PlaceStreamListener, TweetsAuthHandler
-from .tweet_layers import GeoTweetLayer, PlaceTweetLayer
-from .layer_export import ShpLayerExport
-from .gui_messages import *
+from ..layers.tweet_layers import GeoTweetLayer, PlaceTweetLayer
+from ..layers.layer_export import ShpLayerExport
+from ..gui.gui_messages import *
 
 # Import the code for the dialog
-from .threading_master_dialog import ThreadingMasterDialog
+from ..gui.threading_master_dialog import ThreadingMasterDialog
+from ..gui.oauth_dialog import OAuthCredentialsDialog
 
 
 class Signals(QObject):
@@ -83,6 +86,7 @@ class ThreadingMaster:
 
         # Create the dialog (after translation) and keep reference
         self.dlg = ThreadingMasterDialog()
+        self.oauth_dlg = OAuthCredentialsDialog()
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&Threading Master')
@@ -93,17 +97,25 @@ class ThreadingMaster:
         # get user OS ['darwin', 'linux', 'win32'] and home directory
         self.user_os = platform
         self.home_dir = os.path.expanduser('~')
+        self.env = 'PROD'
         print("operating system is {0}".format(self.user_os))
         print("home dir is {0}".format(self.home_dir))
+        self.credentials_validator = CredentialsValidator(app_name=self.app_name)
         # initialise tweepy classes
-        self.tweets_handler = TweetsHandler()
-        self.tweets_auth = TweetsAuthHandler()
-        self.api_obj = self.tweets_auth.get_api_obj()
+        self.credentials = None
+        self.tweets_handler = None
+        self.tweets_auth = None
+        self.tweet_layer = None
+        self.api_obj = None
+        self.oauth_cred = None
+        self.limit = None
+        self.limit_type = None
         # initialise user interactions
-        self.setup_navigation()
+        self.setup_main_dlg_navigation()
+        self.setup_oauth_dlg_navigation()
         # initialise signals 
         self.signals = Signals()
-        self.tweet_layer = None
+        
 
 
     # noinspection PyMethodMayBeStatic
@@ -142,26 +154,26 @@ class ThreadingMaster:
         :param text: Text that should be shown in menu items for this action.
         :type text: str
 
-        :param callback: Function to be called when the action is triggered.
-        :type callback: function
+        :param callback: FunctiQtto be called when the action is triggered.
+        :type callback: functioQt
 
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
+        :param enabled_flag: A Qtg indicating if the action should be enabled
+            by default. DefaultQto True.
+        :type enabled_flag: booQt
 
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
+        :param add_to_menu: FlaQtndicating whether the action should also
+            be added to the menQtDefaults to True.
+        :type add_to_menu: boolQt
 
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
+        :param add_to_toolbar: Qtg indicating whether the action should also
+            be added to the tooQtr. Defaults to True.
+        :type add_to_toolbar: bQt
 
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
+        :param status_tip: OptiQtl text to show in a popup when mouse pointer
+            hovers over the actQt.
         :type status_tip: str
 
-        :param parent: Parent widget for the new action. Defaults None.
+        :param parent: Parent wQtet for the new action. Defaults None.
         :type parent: QWidget
 
         :param whats_this: Optional text to show in the status bar when the
@@ -171,8 +183,9 @@ class ThreadingMaster:
             added to self.actions list.
         :rtype: QAction
         """
-
-        icon = QIcon(icon_path)
+        pixmap = QPixmap(icon_path)
+        sclaed_pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio)
+        icon = QIcon(sclaed_pixmap)
         action = QAction(icon, text, parent)
         action.triggered.connect(callback)
         action.setEnabled(enabled_flag)
@@ -198,18 +211,19 @@ class ThreadingMaster:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/threading_master/icon.png'
+        icon_path = ':/plugins/threading_master/icon.svg'
         self.add_action(
             icon_path,
             text=self.tr(u'Threading Master'),
-            callback=self.run,
+            callback=self.run_login,
             parent=self.iface.mainWindow())
     
-    def setup_navigation(self):
-        """ initialise all the users' interaction with the dialog window """
+    def setup_main_dlg_navigation(self):
+        """ initialise users' interaction with the main dialog window """
         # initialise dialog interactions
         self.dlg.stopButton.setIcon(QApplication.style().standardIcon(QStyle.SP_MediaPause))
         self.dlg.stopButton.setEnabled(False)
+        self.dlg.saveLayerButton.setVisible(False)
         self.dlg.saveLayerButton.setEnabled(False) # change it to false when finished debugging
         self.dlg.stopButton.clicked.connect(self.emit_stop)
         self.dlg.streamButton.clicked.connect(self.on_get_stream)
@@ -217,14 +231,46 @@ class ThreadingMaster:
         self.dlg.streamButton.setIcon(QApplication.style().standardIcon(QStyle.SP_MediaPlay))
         self.dlg.SearchTypeDd.addItem("Tweet Location", "_geo_tweets")
         self.dlg.SearchTypeDd.addItem("User Place", "_place_tweets")
+        self.dlg.limitDd.addItem("First", "absolute")
+        self.dlg.limitDd.addItem("Up To", "dynamic")
         self.dlg.limitDd.setEnabled(False)
         self.dlg.limitSb.setEnabled(False)
+        self.dlg.limitSb.valueChanged.connect(self.set_search_limit)
+        self.dlg.limitDd.currentIndexChanged.connect(self.set_limit_type)
         self.dlg.limitCheckBox.stateChanged.connect(self.toggle_limits)
         self.dlg.XMinLineEdit.setValidator(QDoubleValidator(-90.0000, 90.0000, 4))
         self.dlg.YMinLineEdit.setValidator(QDoubleValidator(-180.0000, 180.0000, 4))
         self.dlg.XMaxLineEdit.setValidator(QDoubleValidator(-90.0000, 90.0000, 4))
         self.dlg.YMaxLineEdit.setValidator(QDoubleValidator(-180.0000, 180.0000, 4))
+
         
+    def setup_oauth_dlg_navigation(self):
+        """ initialise users' interaction with the login dialog window """
+        self.oauth_dlg.rejected.connect(self.reject_authorise)
+        self.oauth_dlg.testButton.setEnabled(False)
+        # self.oauth_dlg.buttonBox.buttons()[0].setEnabled(False)
+        self.oauth_dlg.testButton.clicked.connect(lambda: \
+        self.credentials_validator.test_credentials({
+            'CONSUMER_KEY': self.oauth_dlg.consKeyLineEdit.text().strip(),
+            'CONSUMER_KEY_SECRET': self.oauth_dlg.secretKeyLineEdit.text().strip(),
+            'ACCESS_TOKEN': self.oauth_dlg.userTokenLineEdit.text().strip(),
+            'ACCESS_TOKEN_SECRET': self.oauth_dlg.secretTokenLineEdit.text().strip()
+        }))
+        self.oauth_dlg.consKeyLineEdit.textChanged.connect(self.test_empty_auth_fields)
+        self.oauth_dlg.secretKeyLineEdit.textChanged.connect(self.test_empty_auth_fields)
+        self.oauth_dlg.userTokenLineEdit.textChanged.connect(self.test_empty_auth_fields)
+        self.oauth_dlg.secretTokenLineEdit.textChanged.connect(self.test_empty_auth_fields)
+
+    def test_empty_auth_fields(self):
+        consumer_key_not_empty = bool(len(self.oauth_dlg.consKeyLineEdit.text().strip()) > 0)
+        consumer_secret_not_empty = bool(len(self.oauth_dlg.secretKeyLineEdit.text().strip()) > 0)
+        access_token_not_empty = bool(len(self.oauth_dlg.userTokenLineEdit.text().strip()) > 0)
+        access_token_secret_not_empty = bool(len(self.oauth_dlg.secretTokenLineEdit.text().strip()) > 0)
+        if consumer_key_not_empty and consumer_secret_not_empty \
+        and access_token_not_empty and access_token_secret_not_empty:
+            self.oauth_dlg.testButton.setEnabled(True)
+        else:
+            self.oauth_dlg.testButton.setEnabled(False)
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -236,20 +282,136 @@ class ThreadingMaster:
         # remove the toolbar
         del self.toolbar
         
-    def run(self):
+    def run_login(self):
         """Run method that performs all the real work"""
+        self.credentials = self.get_config_credentials()
+        if self.credentials:
+            not_authorised = [c for c in self.credentials.values() if c == '']
+            if not_authorised:
+                # show the login window here
+                self.oauth_cred = OauthCredentials(self.oauth_dlg, self.authorise_user)
+            else:
+                self.run_main()
+        else:
+            print('access credentials not found')
+
+    def run_main(self):
+        # user has all credentials saved in config
+        self.credentials = self.get_config_credentials()
+        self.tweets_auth = TweetsAuthHandler(**self.credentials)
+        self.api_obj = self.tweets_auth.get_api_obj()
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
+        main_loop_result = self.dlg.exec_()
+        print(str(main_loop_result))
+        if main_loop_result:
+            print('OK button pressed')
             pass
+        else:
+            # resets the interface in cancel is clicked
+            self.emit_stop()
+            self.tweets_auth = None
+            self.api_obj = None
+            self.dlg.streamLineEdit.setText('')
+            self.dlg.SearchTypeDd.setCurrentIndex(0)
+            self.tweet_layer = None
+            print('cancel button pressed')
+    
+    def get_config_credentials(self):
+        """ read-in the config credentials from the 
+            config/config.json file
+        """
+        try:
+            credentials = dict()
+            with open(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'config', 'config.json'), 'r') as f:
+                config = simplejson.load(f)
+                for key, value in config[self.env]['CREDENTIALS'].items():
+                    credentials[key] = value
+        except IOError:
+            ConfigErrorMessageBox(self.app_name)
+        finally:
+            return credentials
+
+    def set_config_credentials(self, credentials):
+        """Set the users' credentials in the config/config.json file.
+
+        :param credentials: all the credentials needed to initialise
+            the tweepy auth class
+
+        :type credentials: dict
+        
+        """
+        try:
+            with open(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'config', 'config.json'), 'r') as f:
+                config = simplejson.load(f)
+            for key, value in credentials.items():
+                config[self.env]['CREDENTIALS'][key] = value
+            with open(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'config', 'config.json'), 'w') as f:
+                simplejson.dump(config, f, indent=4 * ' ')
+            return True
+        except IOError:
+            ConfigErrorMessageBox(self.app_name)
+            return False
+
+    @pyqtSlot(dict)
+    def authorise_user(self, credentials=None):
+        self.oauth_dlg.getCredentialsButton.clicked.disconnect()
+        self.oauth_dlg.accepted.disconnect()
+        self.credentials_validator.set_credentials(credentials) 
+        self.credentials_validator.set_parent_dialog(self.oauth_dlg)
+        valid_consumer = self.credentials_validator.validate_consumer_keys()
+        if valid_consumer:
+            save_success = self.set_config_credentials(credentials)
+            if save_success:
+                self.run_main()
+            else:
+                return
+        else:
+            self.oauth_cred.clear_text_fields()
+            self.oauth_cred = OauthCredentials(self.oauth_dlg, self.authorise_user)
+            
+    def reject_authorise(self):
+        self.oauth_dlg.getCredentialsButton.clicked.disconnect()
+        self.oauth_dlg.accepted.disconnect()
+        self.oauth_dlg.consKeyLineEdit.setText('')
+        self.oauth_dlg.secretKeyLineEdit.setText('')
+        self.oauth_dlg.userTokenLineEdit.setText('')
+        self.oauth_dlg.secretTokenLineEdit.setText('')
+        print('rejected')
   
     def toggle_limits(self):
         state = self.dlg.limitCheckBox.isChecked()
         self.dlg.limitDd.setEnabled(state)
         self.dlg.limitSb.setEnabled(state)
+        if state is not True:
+            self.limit_type = None
+            self.limit = None
+        else:
+            self.limit_type = self.dlg.limitDd.itemData(self.dlg.limitDd.currentIndex())
+            self.limit = self.dlg.limitSb.value()
+    
+    def set_search_limit(self):
+        if self.dlg.limitSb.value() == 0:
+            self.dlg.streamButton.setEnabled(False)
+            self.dlg.limitSb.setValue(1) 
+        self.limit = self.dlg.limitSb.value()
+    
+    def set_limit_type(self):
+        self.limit_type = self.dlg.limitDd.itemData(self.dlg.limitDd.currentIndex())
+
+    def toggle_ok_button(self):
+        if self.oauth_dlg.userTokenLineEdit.text() \
+        == '' or self.oauth_dlg.secretTokenLineEdit.text() == '':
+            self.oauth_dlg.buttonBox.buttons()[0].setEnabled(False)
+        else:
+            self.oauth_dlg.buttonBox.buttons()[0].setEnabled(True)
     
     def emit_stop(self):
         self.signals.stream_on.emit()
@@ -259,12 +421,11 @@ class ThreadingMaster:
         self.tweet_layer = None
 
     def tweet_to_file(self, message):
-        with open(os.path.join(self.home_dir, 'tweets_report.txt'), 'a+') as report:
+        with open(os.path.join(self.home_dir, 'report.txt'), 'a+') as report:
             report.write(str(message))
     
     def tweet_to_layer(self, geo_tweet):
         print(str(geo_tweet))
-        
         self.tweet_layer.add_tweet_feature(geo_tweet)
         self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
     
@@ -296,8 +457,10 @@ class ThreadingMaster:
     def add_tweet_layer(self, src_type, src_kw):
         """ 
         Add the in-memory tweets layer to the map canvas 
+        
         :param src_type: string
         :param src_kw: string
+        
         """
         map_layers = [layer[1] for layer in QgsProject.instance().mapLayers().items()
         if type(layer[1]) == GeoTweetLayer or type(layer[1]) == PlaceTweetLayer]
@@ -319,14 +482,20 @@ class ThreadingMaster:
             self.signals.stream_on,
             self.tweet_to_file,
             self.on_stream_error,
-            api=self.api_obj)
+            self.emit_stop,
+            api=self.api_obj,
+            limit=self.limit,
+            limit_type=self.limit_type)
         else:
             stream_listener = PlaceStreamListener(
-            self.tweet_to_layer, 
+            self.tweet_to_layer,
             self.signals.stream_on,
             self.tweet_to_file,
             self.on_stream_error,
-            api=self.api_obj)
+            self.emit_stop,
+            api=self.api_obj,
+            limit=self.limit,
+            limit_type=self.limit_type)
         myStream = tweepy.Stream(auth=self.api_obj.auth, listener=stream_listener)
         myStream.filter(track=src_kw, is_async=True)
 

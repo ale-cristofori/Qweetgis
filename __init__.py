@@ -32,5 +32,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .threading_master import ThreadingMaster
+    from .search.main import ThreadingMaster
     return ThreadingMaster(iface)
