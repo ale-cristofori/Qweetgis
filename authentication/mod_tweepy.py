@@ -3,10 +3,10 @@
 import tweepy
 import pdb
 import simplejson
+import os
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
-# from ..gui.gui_messages import *
-
+from ..gui.gui_messages import ConfigErrorMessageBox
 
 
 class Signals(QObject):
@@ -101,24 +101,28 @@ class PlaceStreamListener(BaseStreamListener):
                          tweet_to_file, emit_stop, api, limit, limit_type)
 
     def on_status(self, status):
-        while self.stream_on:
-            output_object = {
-                'status_id': status.id_str,
-                'tweet': status.text,
-                'user': status.user.screen_name,
-                'place': status.place,
-                'localization': status.user.location,
-                'time_zone': status.user.time_zone,
-                'time': status.timestamp_ms
-            }
-            if status.place is not None:
-                self.tweet_signals.tweet_received.emit(output_object)
-                self.counter += 1
-                if self.limit_type == 'absolute':
-                    self.check_limit()
-            return True
-        self.emit_stop()
-        return False
+        try: 
+            while self.stream_on:
+                output_object = {
+                    'status_id': status.id_str,
+                    'tweet': status.text,
+                    'user': status.user.screen_name,
+                    'place': status.place,
+                    'localization': status.user.location,
+                    'time_zone': status.user.time_zone,
+                    'time': status.timestamp_ms
+                }
+                if status.place is not None:
+                    self.tweet_signals.tweet_received.emit(output_object)
+                    self.counter += 1
+                    if self.limit_type == 'absolute':
+                        self.check_limit()
+                return True
+            self.emit_stop()
+            return False
+        except Exception as e:
+            self.tweet_signals.stream_error.emit("Fatal Error: {0}".format(e.message))
+            return False
 
 
 class GeoStreamListener(BaseStreamListener):
@@ -128,25 +132,29 @@ class GeoStreamListener(BaseStreamListener):
                          tweet_to_file, emit_stop, api, limit, limit_type)
     
     def on_status(self, status):
-        while self.stream_on:
-            output_object = {
-                'status_id': status.id_str,
-                'tweet': status.text,
-                'user': status.user.screen_name,
-                'geo': status.geo,
-                'place': status.place,
-                'localization': status.user.location,
-                'time_zone': status.user.time_zone,
-                'time': status.timestamp_ms
-            }
-            if status.geo is not None:
-                self.tweet_signals.tweet_received.emit(output_object)
-                self.counter += 1
-                if self.limit_type == 'absolute':
-                    self.check_limit()
-            return True
-        self.emit_stop()
-        return False
+        try:
+            while self.stream_on:
+                output_object = {
+                    'status_id': status.id_str,
+                    'tweet': status.text,
+                    'user': status.user.screen_name,
+                    'geo': status.geo,
+                    'place': status.place,
+                    'localization': status.user.location,
+                    'time_zone': status.user.time_zone,
+                    'time': status.timestamp_ms
+                }
+                if status.geo is not None:
+                    self.tweet_signals.tweet_received.emit(output_object)
+                    self.counter += 1
+                    if self.limit_type == 'absolute':
+                        self.check_limit()
+                return True
+            self.emit_stop()
+            return False
+        except Exception as e:
+            self.tweet_signals.stream_error.emit("Fatal Error: {0}".format(e.message))
+            return False
 
 
 class TweetsAuthHandler():
@@ -158,9 +166,25 @@ class TweetsAuthHandler():
         self.auth = tweepy.OAuthHandler(self.consumer_token, self.consumer_secret)
         try:
             self.auth.set_access_token(self.access_token, self.access_token_secret)
-            self.api = tweepy.API(self.auth)
+            self.proxy = self.get_user_proxy()
+            self.api = tweepy.API(self.auth, proxy=self.proxy)
         except tweepy.TweepError:
-            print('Error! Failed to get request token.')
+            print('Error! Failed to set request token.')
+    
+    def get_user_proxy(self):
+        """ read-in the config proxy server from the 
+            config/config.json file
+        """
+        try:
+            proxy = None
+            with open(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), 'config', 'config.json'), 'r') as f:
+                config = simplejson.load(f)
+                proxy = config['PROXY'] if config['PROXY'] != '' else None
+        except IOError:
+            proxy = None
+        finally:
+            return proxy
     
     def get_api_obj(self):
         return self.api

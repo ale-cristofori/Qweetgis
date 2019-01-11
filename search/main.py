@@ -24,6 +24,7 @@
 # Use pdb for debugging
 import pdb
 import tweepy
+import time
 import datetime
 import os.path
 import simplejson
@@ -315,6 +316,12 @@ class ThreadingMaster:
             self.api_obj = None
             self.dlg.streamLineEdit.setText('')
             self.dlg.SearchTypeDd.setCurrentIndex(0)
+            self.dlg.limitCheckBox.setChecked(False)
+            self.dlg.limitDd.setCurrentIndex(0)
+            self.dlg.limitDd.setEnabled(False)
+            self.dlg.limitSb.setValue(1)
+            self.dlg.limitSb.setEnabled(False)
+            self.dlg.SearchTypeDd.setCurrentIndex(0)
             self.tweet_layer = None
             print('cancel button pressed')
     
@@ -359,7 +366,7 @@ class ThreadingMaster:
         except IOError:
             ConfigErrorMessageBox(self.app_name)
             return False
-
+    
     @pyqtSlot(dict)
     def authorise_user(self, credentials=None):
         self.oauth_dlg.getCredentialsButton.clicked.disconnect()
@@ -427,7 +434,8 @@ class ThreadingMaster:
     def tweet_to_layer(self, geo_tweet):
         print(str(geo_tweet))
         self.tweet_layer.add_tweet_feature(geo_tweet)
-        self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
+        if self.tweet_layer is not None:
+            self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
     
     def on_stream_error(self, status_error):
         print("there was an error in the stream, shut down")
@@ -467,13 +475,16 @@ class ThreadingMaster:
         for layer in map_layers:
             if layer.name() == "{0}{1}".format(src_kw, src_type) and \
             layer.providerType() == 'memory' and \
-            layer.wkbType() == QgsWkbTypes.Point:
+            layer.wkbType() == QgsWkbTypes.Point and \
+            layer.limit_type == self.limit_type and layer.limit == self.limit and \
+            self.limit_type == None and self.limit == None:
                 self.tweet_layer = layer
         if self.tweet_layer is None:
             if src_type == "_geo_tweets":
-                self.tweet_layer = GeoTweetLayer("EPSG:4326", src_kw)
+                self.tweet_layer = GeoTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type)
             else:
-                self.tweet_layer = PlaceTweetLayer("EPSG:4326", src_kw)
+                self.tweet_layer = PlaceTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type)
+            # self.tweet_layer.startEditing()
             QgsProject.instance().addMapLayer(self.tweet_layer)
         
     def activate_stream(self, src_type, src_kw):

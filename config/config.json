@@ -5,7 +5,9 @@
             "CONSUMER_KEY_SECRET": "",
             "ACCESS_TOKEN": "",
             "ACCESS_TOKEN_SECRET": ""
-        }
+        },
+        
+        "PROXY": ""
     },
     "PROD": {
         "CREDENTIALS": {
@@ -13,7 +15,9 @@
             "CONSUMER_KEY_SECRET": "",
             "ACCESS_TOKEN": "",
             "ACCESS_TOKEN_SECRET": ""
-        }
+        },
+
+        "PROXY": ""
     },
     "TEST": {
         "CREDENTIALS": {
@@ -21,6 +25,8 @@
             "CONSUMER_KEY_SECRET": "",
             "ACCESS_TOKEN": "",
             "ACCESS_TOKEN_SECRET": ""
-        }
+        },
+
+        "PROXY": ""
     }
 }
