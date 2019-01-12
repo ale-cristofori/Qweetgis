@@ -71,3 +71,13 @@ class CredentialsTestMessagebox(QMessageBox):
                         QMessageBox.Ok, None)
         self.exec_()
 
+
+class EmptyIntersectionMessageBox(QMessageBox):
+    def __init__(self, app_name=''):
+        self.app_name = app_name
+        super().__init__(QMessageBox.Critical, self.app_name,
+                        'The selected area is outside allowed extent' \
+                        ' (-180, -90, 180, 90)',
+                        QMessageBox.Ok, None)
+        self.exec_()
+

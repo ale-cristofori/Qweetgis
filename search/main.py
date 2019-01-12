@@ -31,7 +31,8 @@ import simplejson
 # import qgis.utils
 from abc import abstractmethod
 from sys import platform
-from qgis.core import QgsProject, QgsWkbTypes, QgsVectorLayer 
+from qgis.core import QgsProject, QgsWkbTypes, QgsVectorLayer, \
+    QgsCoordinateReferenceSystem, QgsRectangle
 # Initialize Qt resources from file resources.py
 from ..resources import *
 from PyQt5.QtGui import QIcon, QColor, QDoubleValidator, QPixmap
@@ -99,6 +100,9 @@ class ThreadingMaster:
         self.user_os = platform
         self.home_dir = os.path.expanduser('~')
         self.env = 'PROD'
+        self.canvas = self.iface.mapCanvas()
+        self.plugin_crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        self.plugin_extent = QgsRectangle(-180.00, -90, 180.00, 90)
         print("operating system is {0}".format(self.user_os))
         print("home dir is {0}".format(self.home_dir))
         self.credentials_validator = CredentialsValidator(app_name=self.app_name)
@@ -111,9 +115,11 @@ class ThreadingMaster:
         self.oauth_cred = None
         self.limit = None
         self.limit_type = None
+        self.search_type = 'keyword'
         # initialise user interactions
         self.setup_main_dlg_navigation()
         self.setup_oauth_dlg_navigation()
+        self.setup_layer_box_navigation()
         # initialise signals 
         self.signals = Signals()
         
@@ -239,10 +245,8 @@ class ThreadingMaster:
         self.dlg.limitSb.valueChanged.connect(self.set_search_limit)
         self.dlg.limitDd.currentIndexChanged.connect(self.set_limit_type)
         self.dlg.limitCheckBox.stateChanged.connect(self.toggle_limits)
-        self.dlg.XMinLineEdit.setValidator(QDoubleValidator(-90.0000, 90.0000, 4))
-        self.dlg.YMinLineEdit.setValidator(QDoubleValidator(-180.0000, 180.0000, 4))
-        self.dlg.XMaxLineEdit.setValidator(QDoubleValidator(-90.0000, 90.0000, 4))
-        self.dlg.YMaxLineEdit.setValidator(QDoubleValidator(-180.0000, 180.0000, 4))
+        self.dlg.keywordRadioButton.toggled.connect(lambda: self.toggle_search(self.dlg.keywordRadioButton))
+        self.dlg.geoRadioButton.toggled.connect(lambda: self.toggle_search(self.dlg.geoRadioButton))
 
         
     def setup_oauth_dlg_navigation(self):
@@ -261,6 +265,12 @@ class ThreadingMaster:
         self.oauth_dlg.secretKeyLineEdit.textChanged.connect(self.test_empty_auth_fields)
         self.oauth_dlg.userTokenLineEdit.textChanged.connect(self.test_empty_auth_fields)
         self.oauth_dlg.secretTokenLineEdit.textChanged.connect(self.test_empty_auth_fields)
+
+    def setup_layer_box_navigation(self):
+        self.dlg.extentGroupBox.setOriginalExtent(self.plugin_extent, self.plugin_crs)
+        self.dlg.extentGroupBox.setCurrentExtent(self.plugin_extent, self.plugin_crs)
+        self.dlg.extentGroupBox.setOutputCrs(self.plugin_crs)
+        self.canvas.extentsChanged.connect(self.set_extent_box)
 
     def test_empty_auth_fields(self):
         consumer_key_not_empty = bool(len(self.oauth_dlg.consKeyLineEdit.text().strip()) > 0)
@@ -301,12 +311,22 @@ class ThreadingMaster:
         self.credentials = self.get_config_credentials()
         self.tweets_auth = TweetsAuthHandler(**self.credentials)
         self.api_obj = self.tweets_auth.get_api_obj()
+        current_crs = QgsProject.instance().crs()
+        current_extent = self.compare_extents(self.canvas.extent())
+        if current_crs.authid() != 'EPSG:4326':
+            QgsProject.instance().setCrs(self.plugin_crs)
+        self.canvas.setExtent(self.plugin_extent)
+        self.canvas.refresh()
         # show the dialog
+        self.dlg.stackedWidget.setCurrentIndex(0)
         self.dlg.show()
         # Run the dialog event loop
         main_loop_result = self.dlg.exec_()
         print(str(main_loop_result))
         if main_loop_result:
+            self.dlg.keywordRadioButton.setChecked(True)
+            if current_crs.authid() != 'EPSG:4326':
+                QgsProject.instance().setCrs(current_crs)
             print('OK button pressed')
             pass
         else:
@@ -321,9 +341,30 @@ class ThreadingMaster:
             self.dlg.limitDd.setEnabled(False)
             self.dlg.limitSb.setValue(1)
             self.dlg.limitSb.setEnabled(False)
+            self.dlg.keywordRadioButton.setChecked(True)
             self.dlg.SearchTypeDd.setCurrentIndex(0)
             self.tweet_layer = None
+            if current_crs.authid() != 'EPSG:4326':
+                QgsProject.instance().setCrs(current_crs)
+            self.canvas.setExtent(current_extent)
+            self.canvas.refresh()
             print('cancel button pressed')
+    
+    def compare_extents(self, current_extent):
+        x_min = self.plugin_extent.xMinimum() if \
+                current_extent.xMinimum() == self.plugin_extent.xMinimum()\
+                else current_extent.xMinimum()
+        y_min = self.plugin_extent.yMinimum() if \
+                current_extent.yMinimum() == self.plugin_extent.yMinimum()\
+                else current_extent.yMinimum()
+        x_max = self.plugin_extent.xMaximum() if \
+                current_extent.xMaximum() == self.plugin_extent.xMaximum()\
+                else current_extent.xMaximum()
+        y_max = self.plugin_extent.yMaximum() if \
+                current_extent.yMaximum() == self.plugin_extent.yMaximum()\
+                else current_extent.yMaximum()
+        return QgsRectangle(x_min, y_min, x_max, y_max)
+
     
     def get_config_credentials(self):
         """ read-in the config credentials from the 
@@ -383,6 +424,10 @@ class ThreadingMaster:
         else:
             self.oauth_cred.clear_text_fields()
             self.oauth_cred = OauthCredentials(self.oauth_dlg, self.authorise_user)
+    
+    def set_extent_box(self):
+        self.dlg.extentGroupBox.setCurrentExtent(self.canvas.extent(), self.plugin_crs)
+        self.dlg.extentGroupBox.setOutputExtentFromCurrent()
             
     def reject_authorise(self):
         self.oauth_dlg.getCredentialsButton.clicked.disconnect()
@@ -404,6 +449,30 @@ class ThreadingMaster:
             self.limit_type = self.dlg.limitDd.itemData(self.dlg.limitDd.currentIndex())
             self.limit = self.dlg.limitSb.value()
     
+    def toggle_search(self, radio_button):
+        if radio_button.text() == 'Keyword Search':
+            if radio_button.isChecked():
+                self.search_type = 'keyword'
+                self.dlg.stackedWidget.setCurrentIndex(0)
+                self.dlg.extentGroupBox.setEnabled(False)
+                self.dlg.streamLineEdit.setEnabled(True)
+            else:
+                self.search_type = 'geo'
+                self.dlg.stackedWidget.setCurrentIndex(1)
+                self.dlg.extentGroupBox.setEnabled(True)
+                self.dlg.streamLineEdit.setEnabled(False)
+        if radio_button.text() == 'Geo Search':
+            if radio_button.isChecked():
+                self.search_type = 'geo'
+                self.dlg.stackedWidget.setCurrentIndex(1)
+                self.dlg.extentGroupBox.setEnabled(True)
+                self.dlg.streamLineEdit.setEnabled(False)
+            else:
+                self.search_type = 'keyword'
+                self.dlg.stackedWidget.setCurrentIndex(0)
+                self.dlg.extentGroupBox.setEnabled(False)
+                self.dlg.streamLineEdit.setEnabled(True)
+
     def set_search_limit(self):
         if self.dlg.limitSb.value() == 0:
             self.dlg.streamButton.setEnabled(False)
@@ -434,7 +503,7 @@ class ThreadingMaster:
     def tweet_to_layer(self, geo_tweet):
         print(str(geo_tweet))
         self.tweet_layer.add_tweet_feature(geo_tweet)
-        if self.tweet_layer is not None:
+        if self.tweet_layer is not None and self.search_type != 'geo':
             self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
     
     def on_stream_error(self, status_error):
@@ -487,7 +556,7 @@ class ThreadingMaster:
             # self.tweet_layer.startEditing()
             QgsProject.instance().addMapLayer(self.tweet_layer)
         
-    def activate_stream(self, src_type, src_kw):
+    def activate_stream(self, src_type, src_kw=None, src_bbox=None):
         if src_type == "_geo_tweets":
             stream_listener = GeoStreamListener(self.tweet_to_layer, 
             self.signals.stream_on,
@@ -508,10 +577,21 @@ class ThreadingMaster:
             limit=self.limit,
             limit_type=self.limit_type)
         myStream = tweepy.Stream(auth=self.api_obj.auth, listener=stream_listener)
-        myStream.filter(track=src_kw, is_async=True)
+        if self.search_type == 'keyword':
+            myStream.filter(track=src_kw, is_async=True)
+        if self.search_type == 'geo':
+            myStream.filter(locations=src_bbox, is_async=True)
 
     def on_get_stream(self):
-        """Test Tweet Streamer"""
+        if self.search_type == 'keyword':
+            self.get_keyword_search()
+        else:
+            self.get_geo_search()
+        # else:
+        #     self.get_geo_search()
+    
+    def get_keyword_search(self):
+        """Keywords filter base streaming"""
         keywords = self.dlg.streamLineEdit.text().split()
         if len(keywords) == 0: 
             print("no text found")
@@ -520,6 +600,23 @@ class ThreadingMaster:
             self.dlg.stopButton.setEnabled(True)
             if self.dlg.saveLayerButton.isEnabled():
                 self.dlg.saveLayerButton.setEnabled(False)
-            search_type = self.dlg.SearchTypeDd.itemData(self.dlg.SearchTypeDd.currentIndex())
-            self.add_tweet_layer(search_type, "_".join(keywords))
-            self.activate_stream(search_type, keywords)
+            accuracy = self.dlg.SearchTypeDd.itemData(self.dlg.SearchTypeDd.currentIndex())
+            self.add_tweet_layer(accuracy, "_".join(keywords))
+            self.activate_stream(accuracy, src_kw=keywords)
+    
+    def get_geo_search(self):
+        """Bounding box based streaming """
+        BBOX = self.dlg.extentGroupBox.outputExtent()
+        intersection = self.plugin_extent.intersect(BBOX)
+        if intersection.toString() == 'Empty':
+            EmptyIntersectionMessageBox(self.app_name)
+        else:
+            self.dlg.streamButton.setEnabled(False)
+            self.dlg.stopButton.setEnabled(True)
+            if self.dlg.saveLayerButton.isEnabled():
+                self.dlg.saveLayerButton.setEnabled(False)
+            accuracy = self.dlg.SearchTypeDd.itemData(self.dlg.SearchTypeDd.currentIndex())
+            self.add_tweet_layer(accuracy, '_'.join(['BBOXsearch']))
+            src_bbox = [intersection.xMinimum(), intersection.yMinimum(), 
+                        intersection.xMaximum(), intersection.yMaximum()]
+            self.activate_stream(accuracy, src_bbox=src_bbox)
