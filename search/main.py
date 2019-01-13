@@ -22,8 +22,12 @@
  ***************************************************************************/
 """
 # Use pdb for debugging
+from ..gui.gui_messages import *
 import pdb
-import tweepy
+try:
+    import tweepy
+except ImportError:
+    NoTweepyMessageBox()
 import time
 import datetime
 import os.path
@@ -37,15 +41,16 @@ from qgis.core import QgsProject, QgsWkbTypes, QgsVectorLayer, \
 from ..resources import *
 from PyQt5.QtGui import QIcon, QColor, QDoubleValidator, QPixmap
 from PyQt5.QtWidgets import QAction, QStyle, QApplication, QFileDialog
-from PyQt5.QtCore import QObject, QSettings, QTranslator, qVersion, QCoreApplication, \
-    pyqtSlot, pyqtRemoveInputHook, pyqtSignal, Qt
+from PyQt5.QtCore import QObject, QSettings, QTranslator, qVersion, \
+                         QCoreApplication, pyqtSlot, pyqtRemoveInputHook, \
+                         pyqtSignal, Qt
 from ..authentication.oauth_credentials import OauthCredentials
 from ..authentication.credentials_validator import CredentialsValidator
 from ..authentication.mod_tweepy import TweetsHandler, GeoStreamListener, \
     PlaceStreamListener, TweetsAuthHandler
 from ..layers.tweet_layers import GeoTweetLayer, PlaceTweetLayer
 from ..layers.layer_export import ShpLayerExport
-from ..gui.gui_messages import *
+# from ..gui.gui_messages import *
 
 # Import the code for the dialog
 from ..gui.threading_master_dialog import ThreadingMasterDialog
@@ -123,8 +128,6 @@ class ThreadingMaster:
         # initialise signals 
         self.signals = Signals()
         
-
-
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -139,7 +142,6 @@ class ThreadingMaster:
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('ThreadingMaster', message)
-
 
     def add_action(
         self,
@@ -226,31 +228,36 @@ class ThreadingMaster:
             parent=self.iface.mainWindow())
     
     def setup_main_dlg_navigation(self):
-        """ initialise users' interaction with the main dialog window """
+        """ 
+        Initialise users' interaction with the main dialog window 
+        connect slots to buttons, add items to combo boxes, etc.
+        """
         # initialise dialog interactions
-        self.dlg.stopButton.setIcon(QApplication.style().standardIcon(QStyle.SP_MediaPause))
-        self.dlg.stopButton.setEnabled(False)
-        self.dlg.saveLayerButton.setVisible(False)
-        self.dlg.saveLayerButton.setEnabled(False) # change it to false when finished debugging
-        self.dlg.stopButton.clicked.connect(self.emit_stop)
-        self.dlg.streamButton.clicked.connect(self.on_get_stream)
+        self.dlg.stopButton.setIcon(QApplication.style().standardIcon(QStyle.SP_MediaPause)) 
+        self.dlg.stopButton.setEnabled(False) 
+        self.dlg.saveLayerButton.setVisible(False) 
+        self.dlg.saveLayerButton.setEnabled(False) # change it to false when finished debugg ing
+        self.dlg.stopButton.clicked.connect(self.emit_stop) 
+        self.dlg.streamButton.clicked.connect(self.on_get_stream) 
         self.dlg.saveLayerButton.clicked.connect(self.on_save_layer)
         self.dlg.streamButton.setIcon(QApplication.style().standardIcon(QStyle.SP_MediaPlay))
         self.dlg.SearchTypeDd.addItem("Tweet Location", "_geo_tweets")
         self.dlg.SearchTypeDd.addItem("User Place", "_place_tweets")
-        self.dlg.limitDd.addItem("First", "absolute")
-        self.dlg.limitDd.addItem("Up To", "dynamic")
-        self.dlg.limitDd.setEnabled(False)
-        self.dlg.limitSb.setEnabled(False)
+        self.dlg.limitDd.addItem("First", "absolute") 
+        self.dlg.limitDd.addItem("Up To", "dynamic") 
+        self.dlg.limitDd.setEnabled(False) 
+        self.dlg.limitSb.setEnabled(False) 
         self.dlg.limitSb.valueChanged.connect(self.set_search_limit)
         self.dlg.limitDd.currentIndexChanged.connect(self.set_limit_type)
         self.dlg.limitCheckBox.stateChanged.connect(self.toggle_limits)
         self.dlg.keywordRadioButton.toggled.connect(lambda: self.toggle_search(self.dlg.keywordRadioButton))
         self.dlg.geoRadioButton.toggled.connect(lambda: self.toggle_search(self.dlg.geoRadioButton))
-
-        
-    def setup_oauth_dlg_navigation(self):
-        """ initialise users' interaction with the login dialog window """
+ 
+    def setup_oauth_dlg_navigation(self): 
+        """  
+        Initialise users' interaction with the login dialog window 
+        connect slots to buttons, add items to combo boxes, etc.
+        """
         self.oauth_dlg.rejected.connect(self.reject_authorise)
         self.oauth_dlg.testButton.setEnabled(False)
         # self.oauth_dlg.buttonBox.buttons()[0].setEnabled(False)
@@ -267,13 +274,23 @@ class ThreadingMaster:
         self.oauth_dlg.secretTokenLineEdit.textChanged.connect(self.test_empty_auth_fields)
 
     def setup_layer_box_navigation(self):
+        """ 
+        Initialise the deafault values and behaviours for the QGISLayerExtent 
+        group box widget, whenever the exent changes we change the displayed
+        coordinates
+        """
         self.dlg.extentGroupBox.setOriginalExtent(self.plugin_extent, self.plugin_crs)
         self.dlg.extentGroupBox.setCurrentExtent(self.plugin_extent, self.plugin_crs)
         self.dlg.extentGroupBox.setOutputCrs(self.plugin_crs)
         self.canvas.extentsChanged.connect(self.set_extent_box)	
-        # self.dlg.extentGroupBox.extentChanged.connect(self.set_extent_box)
 
     def test_empty_auth_fields(self):
+        """
+        Checks that every single text field in the authorisation dialog is filled 
+        and in case is not disables the "test credentials" button, this is a slot 
+        that responds to every change in the authorisation credentials dialog 
+        text fields 
+        """
         consumer_key_not_empty = bool(len(self.oauth_dlg.consKeyLineEdit.text().strip()) > 0)
         consumer_secret_not_empty = bool(len(self.oauth_dlg.secretKeyLineEdit.text().strip()) > 0)
         access_token_not_empty = bool(len(self.oauth_dlg.userTokenLineEdit.text().strip()) > 0)
@@ -295,7 +312,12 @@ class ThreadingMaster:
         del self.toolbar
         
     def run_login(self):
-        """Run method that performs all the real work"""
+        """
+        This is the application entry point from the toolbar action,
+        the first thing that we check is that the user has the twitter 
+        credentials in the config file, if any of the credentials are missing
+        does show the login dialog otherwise the main plug-in dialog
+        """
         self.credentials = self.get_config_credentials()
         if self.credentials:
             not_authorised = [c for c in self.credentials.values() if c == '']
@@ -305,9 +327,19 @@ class ThreadingMaster:
             else:
                 self.run_main()
         else:
+            # TODO: a nice error messagebox here
             print('access credentials not found')
 
     def run_main(self):
+        """
+        This is the main plug-in dialog method, intialises all the variavbles that 
+        will stay alive for the working session (api object) and forces the map 
+        to EPSG:4326 and full world extent when the plug-in is started
+
+        :returns: The signal saying if the dialog was accepted or rejected
+        :rtype: int
+
+        """
         # user has all credentials saved in config
         self.credentials = self.get_config_credentials()
         self.tweets_auth = TweetsAuthHandler(**self.credentials)
@@ -318,19 +350,20 @@ class ThreadingMaster:
             QgsProject.instance().setCrs(self.plugin_crs)
         self.canvas.setExtent(self.plugin_extent)
         self.canvas.refresh()
-        # show the dialog
+        # set the first page of the search type widget
         self.dlg.stackedWidget.setCurrentIndex(0)
         self.dlg.show()
         # Run the dialog event loop
         main_loop_result = self.dlg.exec_()
+        # when the user clicks on the OK button (not in the plug-in)
         if main_loop_result:
             self.dlg.keywordRadioButton.setChecked(True)
             if current_crs.authid() != 'EPSG:4326':
                 QgsProject.instance().setCrs(current_crs)
-            print('OK button pressed')
             pass
         else:
-            # resets the interface in cancel is clicked
+            """user closes the application ("close button")
+            reset all the variables as before initialisation"""
             self.emit_stop()
             self.tweets_auth = None
             self.api_obj = None
@@ -351,6 +384,20 @@ class ThreadingMaster:
             print('cancel button pressed')
     
     def compare_extents(self, current_extent):
+        """
+        compare the current user map extent with the default
+        plugin extent (-180, -90, 180, 90) and in case they are
+        different saves the current one to reset it when the
+        user will close the application
+
+        :param current_extent: the current user extent expressed in 
+        lat-long coords (XMin, YMin, XMax, YMax)
+        :type current_extent: QgsRectangle
+
+        :returns: QgsRectangle the canvas extent before starting the plugin
+        :rtype: QgsRectangle
+        
+        """
         x_min = self.plugin_extent.xMinimum() if \
                 current_extent.xMinimum() == self.plugin_extent.xMinimum()\
                 else current_extent.xMinimum()
@@ -365,10 +412,15 @@ class ThreadingMaster:
                 else current_extent.yMaximum()
         return QgsRectangle(x_min, y_min, x_max, y_max)
 
-    
     def get_config_credentials(self):
-        """ read-in the config credentials from the 
-            config/config.json file
+        """
+        Read-in the config credentials from the
+        config/config.json file
+
+        :returns credentials: dictionary storing the user's
+        config credentials
+        :rtype: dict
+
         """
         try:
             credentials = dict()
@@ -384,13 +436,17 @@ class ThreadingMaster:
             return credentials
 
     def set_config_credentials(self, credentials):
-        """Set the users' credentials in the config/config.json file.
+        """
+        Set the users' credentials in the config/config.json file.
 
         :param credentials: all the credentials needed to initialise
             the tweepy auth class
-
         :type credentials: dict
-        
+
+        :returns: value saying if the credentials were correctly
+        read from the config file
+        :rtype: bool
+    
         """
         try:
             with open(os.path.join(
@@ -410,6 +466,17 @@ class ThreadingMaster:
     
     @pyqtSlot(dict)
     def authorise_user(self, credentials=None):
+        """
+        Slot to authorise user signal coming from OauthCredentials class
+        when the user clicks on OK on the authorise user dialog
+        validates the submitted credentials and launch the main dialog
+        if credentials are valid and saved to config file, if not returns
+        
+        :param credentials: all the credentials needed to initialise
+                the tweepy auth class
+        :type credentials: dict
+
+        """
         self.oauth_dlg.getCredentialsButton.clicked.disconnect()
         self.oauth_dlg.accepted.disconnect()
         self.credentials_validator.set_credentials(credentials) 
@@ -426,20 +493,32 @@ class ThreadingMaster:
             self.oauth_cred = OauthCredentials(self.oauth_dlg, self.authorise_user)
     
     def set_extent_box(self):
+        """
+        Slot to update the QgsLayerExtent group box widget output 
+        extents whenever the map is moved
+        """
         self.dlg.extentGroupBox.setCurrentExtent(self.canvas.extent(), self.plugin_crs)
         self.dlg.extentGroupBox.setOutputExtentFromCurrent()
-        # self.dlg.extentGroupBox.setCurrentExtent(self.dlg.extentGroupBox.currentExtent(), self.plugin_crs)  # currentExtent()
-            
+   
     def reject_authorise(self):
+        """
+        Slot that responds to the cancel button in the login 
+        dialog, resetting all the lineEdits in the dialog 
+        and disconnecting the signals
+        """
         self.oauth_dlg.getCredentialsButton.clicked.disconnect()
         self.oauth_dlg.accepted.disconnect()
         self.oauth_dlg.consKeyLineEdit.setText('')
         self.oauth_dlg.secretKeyLineEdit.setText('')
         self.oauth_dlg.userTokenLineEdit.setText('')
         self.oauth_dlg.secretTokenLineEdit.setText('')
-        print('rejected')
   
     def toggle_limits(self):
+        """
+        Slot that responds to the change event on the limitCheckBox
+        enabling/disabling the controls to set the streaming
+        limits
+        """
         state = self.dlg.limitCheckBox.isChecked()
         self.dlg.limitDd.setEnabled(state)
         self.dlg.limitSb.setEnabled(state)
@@ -451,6 +530,16 @@ class ThreadingMaster:
             self.limit = self.dlg.limitSb.value()
     
     def toggle_search(self, radio_button):
+        """
+        Slot that responds to the onChecked events on the 
+        keywordRadioButton and geoRadioButton enabling/disabling
+        the controls to input the parameters for the two types
+        of search
+
+        :param radio button: the radio button on which the change
+        event occurred
+        :type: QRadioButton
+        """
         if radio_button.text() == 'Keyword Search':
             if radio_button.isChecked():
                 self.search_type = 'keyword'
@@ -476,15 +565,28 @@ class ThreadingMaster:
 
 
     def set_search_limit(self):
+        """
+        Sets as class property the numerical limit of the tweets to stream
+        from the number spin box
+        """
         if self.dlg.limitSb.value() == 0:
             self.dlg.streamButton.setEnabled(False)
             self.dlg.limitSb.setValue(1) 
         self.limit = self.dlg.limitSb.value()
     
     def set_limit_type(self):
+        """ 
+        Sets as class property the type of limit to apply
+        to the stream (absolute/dynamic)
+        """
         self.limit_type = self.dlg.limitDd.itemData(self.dlg.limitDd.currentIndex())
 
     def toggle_ok_button(self):
+        """
+        Slot that responds to the lineEdit change event on the login
+        window, setting the OK button enables when the Twitter DEV API
+        credentials are not inputted, so that the user cannot proceed
+        """
         if self.oauth_dlg.userTokenLineEdit.text() \
         == '' or self.oauth_dlg.secretTokenLineEdit.text() == '':
             self.oauth_dlg.buttonBox.buttons()[0].setEnabled(False)
@@ -492,26 +594,54 @@ class ThreadingMaster:
             self.oauth_dlg.buttonBox.buttons()[0].setEnabled(True)
     
     def emit_stop(self):
+        """
+        Slot for the emit stop signal, emitted from the stream class and 
+        from the pause button, the slot itself emits a signal
+        to stop the streaming in a separate thread, resets buttons
+        on the main dialog
+        """
+        # signal to stop the streaming
         self.signals.stream_on.emit()
+        # resets the dialog buttons to non streaming session
         self.dlg.stopButton.setEnabled(False)
         self.dlg.streamButton.setEnabled(True)
         self.dlg.saveLayerButton.setEnabled(True)
         self.dlg.streamingPb.setValue(0)
+        if self.limit is None:
+            self.dlg.streamingPb.setRange(0, 100)
         self.dlg.streamingPb.setEnabled(False)
+        # destroys the layer instance for this session
         self.tweet_layer = None
 
     def tweet_to_file(self, message):
+        """Slot for the tweet file signal write to text file the tweets"""
         with open(os.path.join(self.home_dir, 'report.txt'), 'a+') as report:
             report.write(str(message))
     
     def tweet_to_layer(self, geo_tweet):
-        print(str(geo_tweet))
-        self.tweet_layer.add_tweet_feature(geo_tweet)
-        if self.tweet_layer is not None and self.search_type != 'geo':
-            self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
+        """
+        Slot for the tweet to layer signal, when a new tweet object is 
+        received from the streaming thread calls the layer class 
+        to display the tweets as points on the layer canvas
+
+        :param geo_tweet: the object containing the tweet and the 
+        tweets information coming from the streaming thread
+        :type geo_tweet: dict
+        """
+        try:
+            self.tweet_layer.add_tweet_feature(geo_tweet)
+            if self.tweet_layer is not None and (self.limit_type != 'dynamic' or self.search_type != 'geo'):
+                self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
+        except:
+            pass
     
     def on_stream_error(self, status_error):
-        print("there was an error in the stream, shut down")
+        """
+        Slot for the error signal emitted from the streaming thread
+
+        :param status_error: the error code produced from the twitter API
+        :type status_error: int 
+        """
         StreamErrorMessageBox(self.app_name, status_error)
         return False
     
@@ -537,11 +667,18 @@ class ThreadingMaster:
     
     def add_tweet_layer(self, src_type, src_kw):
         """ 
-        Add the in-memory tweets layer to the map canvas 
+        Add the in-memory tweets layer to the map canvas, if there is a 
+        keyword search not limited already on the map who has the same
+        search keywords and has not been made permanent in the same session 
+        uses that layer to resume the previously paused streaming
         
-        :param src_type: string
-        :param src_kw: string
-        
+        :param src_type: The type of search accuracy the user wants to start
+        it can either be based on the provided tweer location (Geo search) or on 
+        the user's profile place (Place search)
+        :type src_type: string
+
+        :param src_kw: The keyword the user wants to use to filter their search
+        :type src_kw: string
         """
         map_layers = [layer[1] for layer in QgsProject.instance().mapLayers().items()
         if type(layer[1]) == GeoTweetLayer or type(layer[1]) == PlaceTweetLayer]
@@ -557,16 +694,32 @@ class ThreadingMaster:
                 self.tweet_layer = GeoTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type, self.dlg)
             else:
                 self.tweet_layer = PlaceTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type, self.dlg)
-            # self.tweet_layer.startEditing()
             QgsProject.instance().addMapLayer(self.tweet_layer)
         
     def activate_stream(self, src_type, src_kw=None, src_bbox=None):
+        """
+        Instantiates the tweepy stream listener, this happens after the 
+        layer has been loaded on the canvas
+
+        :param src_type: The type of search accuracy the user wants to start
+        it can either be based on the provided tweer location (Geo search) or on 
+        the user's profile place (Place search)
+        :type src_type: string
+
+        :param src_kw: The keyword the user wants to use to filter their search
+        :type src_kw: string
+
+        :param src_bbox: In case the user wants to start a BBOX based stream it 
+        contains the extent of the desired search area in (xMin, yMin, xMax, yMax)
+        expressed in lon/lat
+        :type src_bbx: QgsRetangle
+        """
         if src_type == "_geo_tweets":
-            stream_listener = GeoStreamListener(self.tweet_to_layer, 
+            stream_listener = GeoStreamListener(self.tweet_to_layer,
             self.signals.stream_on,
-            self.tweet_to_file,
-            self.update_progress_bar_value,
             self.on_stream_error,
+            self.update_progress_bar_value,
+            self.tweet_to_file,
             self.emit_stop,
             api=self.api_obj,
             limit=self.limit,
@@ -575,9 +728,9 @@ class ThreadingMaster:
             stream_listener = PlaceStreamListener(
             self.tweet_to_layer,
             self.signals.stream_on,
-            self.tweet_to_file,
-            self.update_progress_bar_value,
             self.on_stream_error,
+            self.update_progress_bar_value,
+            self.tweet_to_file,
             self.emit_stop,
             api=self.api_obj,
             limit=self.limit,
@@ -590,24 +743,56 @@ class ThreadingMaster:
             myStream.filter(locations=src_bbox, is_async=True)
     
     def enable_progress_bar(self, limit):
+        """
+        Enables the progress bar when a streaming 
+        session start setting the max value (100)
+
+        :param limit: the limit to number of tweets set
+        by the user, if the param is None it means the
+        search is not limited in its results number
+        :type limit: int
+        
+        """
         self.dlg.streamingPb.setEnabled(True)
-        self.dlg.streamingPb.setRange(0, 100)
+        
         if limit is not None:
+            # progress bar with numbers
+            self.dlg.streamingPb.setRange(0, 100)
             self.dlg.streamingPb.setValue(0)
         else:
-            self.dlg.streamingPb.setValue(100)
+            # progress bar showing busy indicator
+            self.dlg.streamingPb.setRange(0, 0)
+
 
     def update_progress_bar_value(self, value=None):
+        """ 
+        Slot for the update progress signal emitted from the
+        streaming thread
+
+        :param value: the number of tweets already streamed 
+        from when the listener started 
+        :type value: int
+        """
         self.dlg.streamingPb.setValue(value)
 
     def on_get_stream(self):
+        """ 
+        Slot for the StreamButton (play button), fires up two
+        different functions (ans stream listeners) if the user wants 
+        to stream geographically or keyword filtering tweets
+        """
         if self.search_type == 'keyword':
             self.get_keyword_search()
         else:
             self.get_geo_search()
     
     def get_keyword_search(self):
-        """Keywords filter base streaming"""
+        """
+        Keywords filter base streaming
+        enable/disable the controls for the 
+        streaming session and activates the appropiate
+        strem listener
+        """
         keywords = self.dlg.streamLineEdit.text().split()
         if len(keywords) == 0: 
             print("no text found")
@@ -621,7 +806,12 @@ class ThreadingMaster:
             self.activate_stream(accuracy, src_kw=keywords)
     
     def get_geo_search(self):
-        """Bounding box based streaming """
+        """
+        Bounding box based streaming 
+        enable/disable the controls for the 
+        streaming session and activates the appropiate
+        strem listener
+        """
         BBOX = self.dlg.extentGroupBox.outputExtent()
         intersection = self.plugin_extent.intersect(BBOX)
         if intersection.toString() == 'Empty':

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>449</width>
-    <height>422</height>
+    <height>421</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -30,10 +30,6 @@
   </property>
   <property name="windowTitle">
    <string>Threading Master</string>
-  </property>
-  <property name="windowIcon">
-   <iconset>
-    <normaloff>../icon.png</normaloff>../icon.png</iconset>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <property name="sizeConstraint">
@@ -358,6 +354,22 @@
            <enum>QLayout::SetFixedSize</enum>
           </property>
           <item>
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>10</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
            <widget class="QLabel" name="label_10">
             <property name="font">
              <font>
@@ -365,7 +377,7 @@
              </font>
             </property>
             <property name="text">
-             <string>Start/Stop Streaming</string>
+             <string>Start/Pause Streaming</string>
             </property>
            </widget>
           </item>

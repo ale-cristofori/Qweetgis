@@ -1,35 +1,50 @@
+# -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QMessageBox
 
 
+class NoTweepyMessageBox(QMessageBox):
+    """autoexecuting message box when no tweepy is found"""
+    def __init__(self):
+        super().__init__(QMessageBox.Critical, 'Geo Tweet',
+                         'Could not import tweepy, '
+                         'install tweepy to use the plugin',
+                         QMessageBox.Ok, None)
+        self.exec_()
+
+
 class ConfigErrorMessageBox(QMessageBox):
+    """autoexecuting message box when there is no access to config file"""
     def __init__(self, app_name=''):
         self.app_name = app_name
         super().__init__(QMessageBox.Critical, self.app_name,
-                        'Config file not found or not accessible' \
-                        ' at config/config.json',
-                        QMessageBox.Ok, None)
+                         'Config file not found or not accessible' \
+                         ' at config/config.json',
+                         QMessageBox.Ok, None)
         self.exec_()
 
 
 class UndefinedMessageBox(QMessageBox):
+    """autoexecuting message box for undefined object (generic)"""
     def __init__(self, app_name='', undef_object=''):
         self.undef_object = undef_object
         self.app_name = app_name
         super().__init__(QMessageBox.Warning, self.app_name,
-                        '{0} is not defined.\n' \
-                        'Run a search to create a new one'
-                        .format(self.undef_object),
+                         '{0} is not defined.\n' \
+                         'Run a search to create a new one'
+                         .format(self.undef_object),
                          QMessageBox.Ok, None)
         self.exec_()
 
 
 class ExportSuccessMessageBox(QMessageBox):
+    """autoexecuting message box when export to layer successful"""
     def __init__(self, app_name='', layer_name=''):
         self.app_name = app_name
         self.layer_name = layer_name
         super().__init__(QMessageBox.Information, self.app_name, 
-                        'Layer {0} successfully exported'.format(self.layer_name),
-                        QMessageBox.Ok, None)
+                         'Layer {0} successfully exported'
+                         .format(self.layer_name),
+                         QMessageBox.Ok, None)
         self.exec_()
 
 
@@ -39,9 +54,9 @@ class ExportFailMessageBox(QMessageBox):
         self.layer_name = layer_name
         self.export_error = export_error
         super().__init__(QMessageBox.Critical, self.app_name,
-                        'Unable to save layer {0}, error{1}'.format(
-                        self.layer_name(), str(self.export_error)),
-                        QMessageBox.Ok, None)
+                         'Unable to save layer {0}, error{1}'.format(
+                          self.layer_name(), str(self.export_error)),
+                          QMessageBox.Ok, None)
         self.exec_()
 
 
@@ -50,9 +65,9 @@ class StreamErrorMessageBox(QMessageBox):
         self.app_name = app_name
         self.status_error = status_error
         super().__init__(QMessageBox.Critical, self.app_name,
-                        'An error occurred while streaming tweets, Status: {0}. ' \
-                        'The tweet stream is shut down '. format(self.status_error),
-                        QMessageBox.Ok, None)
+                         'An error occurred while streaming tweets, Status: {0}. '
+                         'The tweet stream is shut down '. format(self.status_error),
+                         QMessageBox.Ok, None)
         self.exec_()
 
 
@@ -68,7 +83,7 @@ class CredentialsTestMessagebox(QMessageBox):
     def __init__(self, message=(QMessageBox.NoIcon, '')):
         self.message = message[1]
         super().__init__(message[0], '', self.message,
-                        QMessageBox.Ok, None)
+                         QMessageBox.Ok, None)
         self.exec_()
 
 
@@ -76,8 +91,8 @@ class EmptyIntersectionMessageBox(QMessageBox):
     def __init__(self, app_name=''):
         self.app_name = app_name
         super().__init__(QMessageBox.Critical, self.app_name,
-                        'The selected area is outside allowed extent' \
-                        ' (-180, -90, 180, 90)',
-                        QMessageBox.Ok, None)
+                         'The selected area is outside allowed extent' \
+                         ' (-180, -90, 180, 90)',
+                         QMessageBox.Ok, None)
         self.exec_()
 
