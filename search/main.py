@@ -253,6 +253,7 @@ class ThreadingMaster:
         """ initialise users' interaction with the login dialog window """
         self.oauth_dlg.rejected.connect(self.reject_authorise)
         self.oauth_dlg.testButton.setEnabled(False)
+        # self.oauth_dlg.buttonBox.buttons()[0].setEnabled(False)
         self.oauth_dlg.testButton.clicked.connect(lambda: \
         self.credentials_validator.test_credentials({
             'CONSUMER_KEY': self.oauth_dlg.consKeyLineEdit.text().strip(),
@@ -269,7 +270,8 @@ class ThreadingMaster:
         self.dlg.extentGroupBox.setOriginalExtent(self.plugin_extent, self.plugin_crs)
         self.dlg.extentGroupBox.setCurrentExtent(self.plugin_extent, self.plugin_crs)
         self.dlg.extentGroupBox.setOutputCrs(self.plugin_crs)
-        self.canvas.extentsChanged.connect(self.set_extent_box)
+        self.canvas.extentsChanged.connect(self.set_extent_box)	
+        # self.dlg.extentGroupBox.extentChanged.connect(self.set_extent_box)
 
     def test_empty_auth_fields(self):
         consumer_key_not_empty = bool(len(self.oauth_dlg.consKeyLineEdit.text().strip()) > 0)
@@ -426,6 +428,7 @@ class ThreadingMaster:
     def set_extent_box(self):
         self.dlg.extentGroupBox.setCurrentExtent(self.canvas.extent(), self.plugin_crs)
         self.dlg.extentGroupBox.setOutputExtentFromCurrent()
+        # self.dlg.extentGroupBox.setCurrentExtent(self.dlg.extentGroupBox.currentExtent(), self.plugin_crs)  # currentExtent()
             
     def reject_authorise(self):
         self.oauth_dlg.getCredentialsButton.clicked.disconnect()
@@ -470,6 +473,7 @@ class ThreadingMaster:
                 self.dlg.stackedWidget.setCurrentIndex(0)
                 self.dlg.extentGroupBox.setEnabled(False)
                 self.dlg.streamLineEdit.setEnabled(True)
+
 
     def set_search_limit(self):
         if self.dlg.limitSb.value() == 0:
@@ -553,6 +557,7 @@ class ThreadingMaster:
                 self.tweet_layer = GeoTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type, self.dlg)
             else:
                 self.tweet_layer = PlaceTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type, self.dlg)
+            # self.tweet_layer.startEditing()
             QgsProject.instance().addMapLayer(self.tweet_layer)
         
     def activate_stream(self, src_type, src_kw=None, src_bbox=None):
