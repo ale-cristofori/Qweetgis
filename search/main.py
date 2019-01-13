@@ -253,7 +253,6 @@ class ThreadingMaster:
         """ initialise users' interaction with the login dialog window """
         self.oauth_dlg.rejected.connect(self.reject_authorise)
         self.oauth_dlg.testButton.setEnabled(False)
-        # self.oauth_dlg.buttonBox.buttons()[0].setEnabled(False)
         self.oauth_dlg.testButton.clicked.connect(lambda: \
         self.credentials_validator.test_credentials({
             'CONSUMER_KEY': self.oauth_dlg.consKeyLineEdit.text().strip(),
@@ -322,7 +321,6 @@ class ThreadingMaster:
         self.dlg.show()
         # Run the dialog event loop
         main_loop_result = self.dlg.exec_()
-        print(str(main_loop_result))
         if main_loop_result:
             self.dlg.keywordRadioButton.setChecked(True)
             if current_crs.authid() != 'EPSG:4326':
@@ -494,6 +492,8 @@ class ThreadingMaster:
         self.dlg.stopButton.setEnabled(False)
         self.dlg.streamButton.setEnabled(True)
         self.dlg.saveLayerButton.setEnabled(True)
+        self.dlg.streamingPb.setValue(0)
+        self.dlg.streamingPb.setEnabled(False)
         self.tweet_layer = None
 
     def tweet_to_file(self, message):
@@ -550,10 +550,9 @@ class ThreadingMaster:
                 self.tweet_layer = layer
         if self.tweet_layer is None:
             if src_type == "_geo_tweets":
-                self.tweet_layer = GeoTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type)
+                self.tweet_layer = GeoTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type, self.dlg)
             else:
-                self.tweet_layer = PlaceTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type)
-            # self.tweet_layer.startEditing()
+                self.tweet_layer = PlaceTweetLayer("EPSG:4326", src_kw, self.limit, self.limit_type, self.dlg)
             QgsProject.instance().addMapLayer(self.tweet_layer)
         
     def activate_stream(self, src_type, src_kw=None, src_bbox=None):
@@ -561,6 +560,7 @@ class ThreadingMaster:
             stream_listener = GeoStreamListener(self.tweet_to_layer, 
             self.signals.stream_on,
             self.tweet_to_file,
+            self.update_progress_bar_value,
             self.on_stream_error,
             self.emit_stop,
             api=self.api_obj,
@@ -571,24 +571,35 @@ class ThreadingMaster:
             self.tweet_to_layer,
             self.signals.stream_on,
             self.tweet_to_file,
+            self.update_progress_bar_value,
             self.on_stream_error,
             self.emit_stop,
             api=self.api_obj,
             limit=self.limit,
             limit_type=self.limit_type)
+        self.enable_progress_bar(self.limit)
         myStream = tweepy.Stream(auth=self.api_obj.auth, listener=stream_listener)
         if self.search_type == 'keyword':
             myStream.filter(track=src_kw, is_async=True)
         if self.search_type == 'geo':
             myStream.filter(locations=src_bbox, is_async=True)
+    
+    def enable_progress_bar(self, limit):
+        self.dlg.streamingPb.setEnabled(True)
+        self.dlg.streamingPb.setRange(0, 100)
+        if limit is not None:
+            self.dlg.streamingPb.setValue(0)
+        else:
+            self.dlg.streamingPb.setValue(100)
+
+    def update_progress_bar_value(self, value=None):
+        self.dlg.streamingPb.setValue(value)
 
     def on_get_stream(self):
         if self.search_type == 'keyword':
             self.get_keyword_search()
         else:
             self.get_geo_search()
-        # else:
-        #     self.get_geo_search()
     
     def get_keyword_search(self):
         """Keywords filter base streaming"""

@@ -13,13 +13,14 @@ from PyQt5.QtCore import QVariant, pyqtRemoveInputHook
 
 class TweetLayer(QgsVectorLayer):
     """QGIS Layer class wrapper"""
-    def __init__(self, proj, name, limit=None, limit_type=None):
+    def __init__(self, proj, name, limit=None, limit_type=None, dlg=None):
         super().__init__("Point?crs={0}".format(proj), ''.join(name), "memory")
         self.proj = proj
         self.pr = self.dataProvider()
         self.feat = None
         self.limit = limit
         self.limit_type = limit_type
+        self.dlg = dlg
         self.pr.addAttributes([
             QgsField("status_id", QVariant.String),
             QgsField("user_name", QVariant.String),
@@ -58,10 +59,10 @@ class TweetLayer(QgsVectorLayer):
     def limit_features(self, new_feature):
         feature_count = self.pr.featureCount()
         if feature_count < self.limit:
-            print("feature count is {0}, limit is {1}".format(feature_count, self.limit))
             self.pr.addFeatures([new_feature])
+            progress = (feature_count * 100) / self.limit
+            self.dlg.streamingPb.setValue(progress)
         else:
-            print("feature count is {0}, limit is {1}".format(feature_count, self.limit))
             feats_request = QgsFeatureRequest()
             feats_request.addOrderBy('time', ascending=False)
             feats_request.setLimit(2000)
@@ -77,10 +78,10 @@ class TweetLayer(QgsVectorLayer):
             
 class GeoTweetLayer(TweetLayer):
     """subclass for geo-located tweets"""
-    def __init__(self, proj, name, limit=None, limit_type=None):
+    def __init__(self, proj, name, limit=None, limit_type=None, dlg=None):
         self.src_type = "_geo_tweets"
         name = "{0}{1}".format(name, self.src_type)
-        super().__init__(proj, name, limit, limit_type)
+        super().__init__(proj, name, limit, limit_type, dlg)
     
     def add_tweet_feature(self, tweet):
         super().add_tweet_feature(tweet)
@@ -118,10 +119,10 @@ class GeoTweetLayer(TweetLayer):
 
 class PlaceTweetLayer(TweetLayer):
     """subclass for place-located tweets"""
-    def __init__(self, proj, name, limit=None, limit_type=None):
+    def __init__(self, proj, name, limit=None, limit_type=None, dlg=None):
         self.src_type = "_place_tweets"
         name = "{0}{1}".format(name, self.src_type)
-        super().__init__(proj, name, limit, limit_type)
+        super().__init__(proj, name, limit, limit_type, dlg)
         self.rect = None
     
     def add_tweet_feature(self, tweet):

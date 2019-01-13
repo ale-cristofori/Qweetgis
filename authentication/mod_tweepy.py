@@ -13,6 +13,7 @@ class Signals(QObject):
     tweet_received = pyqtSignal(dict)
     tweet_file = pyqtSignal(str)
     stream_error = pyqtSignal(int)
+    update_progress = pyqtSignal(int)
 
 
 class TweetsHandler:
@@ -60,11 +61,12 @@ class TweetsHandler:
 
 
 class BaseStreamListener(tweepy.StreamListener):
-    def __init__(self, tweet_to_layer, stream_signal, error_signal,
+    def __init__(self, tweet_to_layer, stream_signal, error_signal, update_progress,
                  tweet_to_file, emit_stop, api=None, limit=None, limit_type=None):
         self.api = api
         self.tweet_to_layer = tweet_to_layer
         self.tweet_to_file = tweet_to_file
+        self.update_progress = update_progress
         self.emit_stop = emit_stop
         self.limit = limit
         self.limit_type = limit_type
@@ -72,6 +74,7 @@ class BaseStreamListener(tweepy.StreamListener):
         self.tweet_signals = Signals()
         self.tweet_signals.tweet_received.connect(self.tweet_to_layer)
         self.tweet_signals.tweet_file.connect(self.tweet_to_file)
+        self.tweet_signals.update_progress.connect(self.update_progress)
         self.tweet_signals.stream_error.connect(self.error_signal)
         self.stream_signal = stream_signal
         self.stream_signal.connect(self.set_stream)
@@ -95,9 +98,9 @@ class BaseStreamListener(tweepy.StreamListener):
 
 
 class PlaceStreamListener(BaseStreamListener):
-    def __init__(self, tweet_to_layer, stream_signal, error_signal,
+    def __init__(self, tweet_to_layer, stream_signal, update_progress, error_signal,
                  tweet_to_file, emit_stop, api=None, limit=None, limit_type=None):
-        super().__init__(tweet_to_layer, stream_signal, error_signal,
+        super().__init__(tweet_to_layer, stream_signal, update_progress, error_signal,
                          tweet_to_file, emit_stop, api, limit, limit_type)
 
     def on_status(self, status):
@@ -115,6 +118,8 @@ class PlaceStreamListener(BaseStreamListener):
                 if status.place is not None:
                     self.tweet_signals.tweet_received.emit(output_object)
                     self.counter += 1
+                    progress = (self.counter * 100) / self.limit
+                    self.tweet_signals.update_progress.emit(progress)
                     if self.limit_type == 'absolute':
                         self.check_limit()
                 return True
@@ -126,9 +131,9 @@ class PlaceStreamListener(BaseStreamListener):
 
 
 class GeoStreamListener(BaseStreamListener):
-    def __init__(self, tweet_to_layer, stream_signal, error_signal,
+    def __init__(self, tweet_to_layer, stream_signal, update_progress, error_signal,
                  tweet_to_file, emit_stop, api=None, limit=None, limit_type=None):
-        super().__init__(tweet_to_layer, stream_signal, error_signal,
+        super().__init__(tweet_to_layer, stream_signal, update_progress, error_signal,
                          tweet_to_file, emit_stop, api, limit, limit_type)
     
     def on_status(self, status):
@@ -147,6 +152,8 @@ class GeoStreamListener(BaseStreamListener):
                 if status.geo is not None:
                     self.tweet_signals.tweet_received.emit(output_object)
                     self.counter += 1
+                    progress = (self.counter * 100) / self.limit
+                    self.tweet_signals.update_progress.emit(progress)
                     if self.limit_type == 'absolute':
                         self.check_limit()
                 return True
