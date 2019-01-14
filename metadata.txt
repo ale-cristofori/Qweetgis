@@ -7,7 +7,7 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=Threading Master
+name=geotweet
 qgisMinimumVersion=3.0
 description=A QGIS Plugin with threading
 version=0.1
@@ -36,4 +36,13 @@ experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
+
+
+
+
+
+
+
+
+
 

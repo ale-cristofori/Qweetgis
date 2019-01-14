@@ -11,7 +11,14 @@ import pdb
 
 
 class Browser(QWebView):
+    """
+    Subclass of pyQt webview, when the user does not log in with its
+    credentials it can get theirs from the web service I set up#
+    this authentication is not viable as the user will always need 
+    consumer keys and those cann be shared on a desktop application
+    """
     def __init__(self):
+        """Constructor"""
         self.view = QWebView.__init__(self)
         self.setWindowTitle('Loading...')
         self.titleChanged.connect(self.adjustTitle)
@@ -28,7 +35,24 @@ class Browser(QWebView):
 
 
 class OauthCredentials:
+    """ This class holds together all the interaction the user can 
+     have on the authentication dialog, this is to keep separated
+     the interfece from the business logic
+    """
+
     def __init__(self, oauth_dlg, authorise_user):
+        """ 
+        Constructor method 
+
+        :param oauth_dlg: the dialog where the authentication 
+        process takes place
+        :type oauth_dlg: QDialog
+
+        :param authorise_user: the function called from the gui
+        to save into the config file the inputted credentials
+        :type authorise_user: function
+        
+        """
         self.oauth_dlg = oauth_dlg
         self.credentials = None
         self.oauth_dlg.show()
@@ -47,6 +71,7 @@ class OauthCredentials:
         self.web_view = None
         
     def get_base_credentials(self):
+        """ connects to the authentication page to download the oauth keys"""
         self.web_view = Browser()
         self.web_view.showMaximized()
         self.web_view.load('http://www.yomapo.com/authenticate.php')
@@ -56,14 +81,11 @@ class OauthCredentials:
         print(str(bytes_string, 'utf-8'))
     
     def clear_text_fields(self):
+        """ 
+            when the plugi closes clear up all the text fields on 
+            the authorisation window
+        """
         self.oauth_dlg.consKeyLineEdit.setText('')
         self.oauth_dlg.secretKeyLineEdit.setText('')
         self.oauth_dlg.userTokenLineEdit.setText('')
         self.oauth_dlg.secretTokenLineEdit.setText('')
-
-# if __name__ == "__main__":
-#     """these lines are only for standalone test"""
-#     app = QApplication(sys.argv)
-#     op = OauthCredentials()
-#     op.get_base_credentials()
-#     sys.exit(app.exec_())

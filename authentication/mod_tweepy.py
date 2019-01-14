@@ -17,6 +17,7 @@ class Signals(QObject):
 
 
 class TweetsHandler:
+    """ this class is just for standalone testing"""
     def __init__(self):
         self.consumer_token = ''
         self.consumer_secret = ''
@@ -61,8 +62,50 @@ class TweetsHandler:
 
 
 class BaseStreamListener(tweepy.StreamListener):
+    """ Base subclass of tweepy stream listener performing the stream process """
     def __init__(self, tweet_to_layer, stream_signal, error_signal, update_progress,
                  tweet_to_file, emit_stop, api=None, limit=None, limit_type=None):
+        """ 
+        Constructor the class is initalised with the parameters needed to start a 
+        streaming session
+
+        :param tweet_to_layer: the slot function on the main class that 
+        responds when a new tweet is received from the stream
+        :type tweet_to_layer: function
+
+        :param stream_signal: the signal coming from the main thread that 
+        sets the parameter stream on to False, pausing the current
+        streaming session
+        :type stream_signal: pyQtsignal
+
+        :param error_signal: the signal emitted from this class to the main 
+        thread when an error occurs during streaming 
+        :type error_signal: pyQtsignal
+
+        :param update_progress: the signal emitted from this class to the main
+        thread informing the progress bar of the staus fo the job 
+        (percentage completed)
+        :type update_progress: function
+
+        :param tweet_to_file: the slot onthe main thread that prints the
+        tweets to a text file 
+        :type tweet_to_file: function
+
+        :param emit_stop: the slot on the main thread that stops the stream, 
+        emitting the stream_signal that stops the stream on this thread
+        type emit_stop: function
+
+        :param api: the tweepy API object required to connect to twitter and
+        perform any action
+        :type api: Tweepy.API 
+
+        :param limit: the maximum number of tweet to retreive when streaming
+        :type limit: int
+
+        :param limit_type: the type of limit requires (absolute or dynamic)
+        :type limit_type: string
+
+        """
         self.api = api
         self.tweet_to_layer = tweet_to_layer
         self.tweet_to_file = tweet_to_file
@@ -85,18 +128,41 @@ class BaseStreamListener(tweepy.StreamListener):
                                   self.counter <= self.limit)
                                   
     def set_stream(self):
+        """ slot for the stop to tweet signal coming from the main thread"""
         self.stream_on = False
     
     def on_error(self, status_code):
+        """
+        function that calls the emit signal to the main thread if an 
+        error occurred while streaming
+
+        :param status_code: the code associated with the error produced 
+        from the twitter API to describe the error
+
+        :type status_code: int
+
+        """
         if status_code == 420:
             self.tweet_signals.stream_error.emit(status_code)
             # returning False in on_error disconnects the stream
             return False
     
     def check_limit(self):
+        """ 
+        function that checks at every iteration if the limit set by 
+        the user has been reached or not, if so stops the tweet stream 
+        
+        """
         self.stream_on = bool(self.stream_on and self.counter <= self.limit)
     
     def get_tweet_text(self, status):
+        """ 
+        function that gets the full text from a tweet (if exists)
+
+        :param status: the full status streamed from the Twitter API
+        :type status: Object
+
+        """
         if hasattr(status, 'retweeted_status'):
             try:
                 text = status.retweeted_status.extended_tweet["full_text"]
@@ -119,6 +185,15 @@ class PlaceStreamListener(BaseStreamListener):
                          emit_stop, api, limit, limit_type)
 
     def on_status(self, status):
+        """ 
+            This method is overridden the streaming tweepy method and runs
+            on a loop on a separate thread, streaming all tweets in a loop
+            at each iteration the function returns, if returns True the stream 
+            continues, if returns False the stream stops
+
+            :param status: the status returned from twitter
+            :type status: Object
+        """
         try: 
             while self.stream_on:
                 output_object = {
@@ -182,7 +257,17 @@ class GeoStreamListener(BaseStreamListener):
 
 
 class TweetsAuthHandler():
+    """ Wrapper custom class for the Tweepy API object, passed to stream 
+    listener to perfomr the streaming
+    """
     def __init__(self, **kwargs):
+        """ 
+            Constructor
+            :param **kwargs: all the four items of credentials needed from the user to 
+            create an authenticated valid tweepy API object
+            :type **kwargs: dict
+        
+        """
         self.consumer_token = kwargs['CONSUMER_KEY']
         self.consumer_secret = kwargs['CONSUMER_KEY_SECRET']
         self.access_token = kwargs['ACCESS_TOKEN']
@@ -211,14 +296,36 @@ class TweetsAuthHandler():
             return proxy
     
     def get_api_obj(self):
+        """ returns the tweepy API object 
+            :returns self.api: the instantiated API object
+            :rtype self.api: Object 
+        """
         return self.api
 
 
 class TestTweetsAuthHandler(TweetsAuthHandler):
+    """ This class is a utilty test for the credentials
+        inputted from the user in case they want to 
+        test if they are correct or not
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        """ 
+            Constructor
+            :param **kwargs: all the four items of credentials needed from the user to 
+            create an authenticated valid tweepy API object
+            :type **kwargs: dict
+        
+        """
 
     def test_credentials(self):
+        """ The method instantiate an API object connects to tweepy and 
+        downloads the first 15 tweets with the simple search method, if unsuccessful
+        tells the user that the credentials submitted may not be valid
+        
+        :returns QMessageBox: the message box displaying if the test was successful or not
+        :rtype QMessageBox: QMessageBox
+        """
         try:
             searched_tweets = self.api.search(q='belen', lang='it')
             texts = []
@@ -232,15 +339,15 @@ class TestTweetsAuthHandler(TweetsAuthHandler):
             message = simplejson.loads(e.response.text)['errors'][0]['message']
             return(QMessageBox.Critical, message)
 
-if __name__ == "__main__":
-    cred = {
-        'CONSUMER_KEY': '',
-        'CONSUMER_KEY_SECRET': '',
-        'ACCESS_TOKEN': '',
-        'ACCESS_TOKEN_SECRET': ''
-        }
-    tweets_handler = TestTweetsAuthHandler(**cred)
-    tweets_handler.test_credentials()
+# if __name__ == "__main__":
+#     cred = {
+#         'CONSUMER_KEY': '',
+#         'CONSUMER_KEY_SECRET': '',
+#         'ACCESS_TOKEN': '',
+#         'ACCESS_TOKEN_SECRET': ''
+#         }
+#     tweets_handler = TestTweetsAuthHandler(**cred)
+#     tweets_handler.test_credentials()
 #    print('success')
     # js_handler = JSHandler()
     # api_obj = tweets_handler.get_api_obj()
