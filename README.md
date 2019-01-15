@@ -46,3 +46,13 @@ From the Twitter Streaming API Geotweet:
  2. Filters Tweets Stream by keywords (more then one keyword are searched together in the tweet `extended_text` attribute field.
  3. Filters Twitter Tweets Stream by location. A search area (Bounding Box) can be defined either with the map canvas extent or using the extent of one layer between those loaded in the QGIS project.
  4. Limits the number of tweets to display/download, the limit can be absolute or continuous. In the first case the Stream listener will close the connection when the limit is reached. In the second case when the limit is reached the listener will continue to stream tweets, removing the tweets from the bottom of the list and adding the new ones as they continue, keeping the same number of tweets specified by the limit. 
+ 
+ **EXAMPLES**
+ 
+ ![](example_images/geo_limited_stream.gif)
+ 
+ ![](example_images/geo_stream.gif)
+ 
+ ![](/example_images/heat_map_stream.gif)
+ 
+ ![](/example_images/keyword_stream.gif)
