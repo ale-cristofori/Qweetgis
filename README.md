@@ -51,9 +51,8 @@ From the Twitter Streaming API Geotweet:
  
  ![](example_images/geo_limited_stream.gif)
  
- 
  ![](example_images/geo_stream.gif)
  
- ![](example_images/heat_map_stream.gif)
+ ![](/example_images/heat_map_stream.gif)
  
- ![](example_images/keyword_stream.gif)
+ ![](/example_images/keyword_stream.gif)
