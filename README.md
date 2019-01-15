@@ -49,10 +49,18 @@ From the Twitter Streaming API Geotweet:
  
  **EXAMPLES**
  
+ dynamic limited streaming 
+ 
  ![](example_images/geo_limited_stream.gif)
+ 
+ Geo based streaming 
  
  ![](example_images/geo_stream.gif)
  
+ Heatmap visualisation 
+ 
  ![](/example_images/heat_map_stream.gif)
+ 
+ Keyword Search example
  
  ![](/example_images/keyword_stream.gif)
