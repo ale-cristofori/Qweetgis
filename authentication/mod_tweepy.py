@@ -13,7 +13,7 @@ class Signals(QObject):
     tweet_received = pyqtSignal(dict)
     tweet_file = pyqtSignal(str)
     stream_error = pyqtSignal(int)
-    update_progress = pyqtSignal(int)
+    update_progress = pyqtSignal(int, int)
 
 
 class TweetsHandler:
@@ -122,10 +122,10 @@ class BaseStreamListener(tweepy.StreamListener):
         self.stream_signal = stream_signal
         self.stream_signal.connect(self.set_stream)
         self.stream_on = True
-        self.counter = 1
+        self.counter = 0
         if self.limit_type == 'absolute':
             self.stream_on = bool(self.stream_on and
-                                  self.counter <= self.limit)
+                                  self.counter < self.limit)
                                   
     def set_stream(self):
         """ slot for the stop to tweet signal coming from the main thread"""
@@ -153,7 +153,7 @@ class BaseStreamListener(tweepy.StreamListener):
         the user has been reached or not, if so stops the tweet stream 
         
         """
-        self.stream_on = bool(self.stream_on and self.counter <= self.limit)
+        self.stream_on = bool(self.stream_on and self.counter < self.limit)
     
     def get_tweet_text(self, status):
         """ 
@@ -206,11 +206,13 @@ class PlaceStreamListener(BaseStreamListener):
                     'time': status.timestamp_ms
                 }
                 if status.place is not None:
-                    self.tweet_signals.tweet_received.emit(output_object)
                     self.counter += 1
+                    tweets_count = self.counter
+                    self.tweet_signals.tweet_received.emit(output_object)
+                    self.tweet_signals.update_progress.emit(None, tweets_count)
                     if self.limit_type == 'absolute':
                         progress = (self.counter * 100) / self.limit
-                        self.tweet_signals.update_progress.emit(progress)
+                        self.tweet_signals.update_progress.emit(progress, tweets_count)
                         self.check_limit()
                 return True
             self.emit_stop()
@@ -242,11 +244,13 @@ class GeoStreamListener(BaseStreamListener):
                     'time': status.timestamp_ms
                 }
                 if status.geo is not None:
-                    self.tweet_signals.tweet_received.emit(output_object)
                     self.counter += 1
+                    tweets_count = self.counter
+                    self.tweet_signals.tweet_received.emit(output_object)
+                    self.tweet_signals.update_progress.emit(None, tweets_count)
                     if self.limit_type == 'absolute':
                         progress = (self.counter * 100) / self.limit
-                        self.tweet_signals.update_progress.emit(progress)
+                        self.tweet_signals.update_progress.emit(progress, tweets_count)
                         self.check_limit()
                 return True
             self.emit_stop()

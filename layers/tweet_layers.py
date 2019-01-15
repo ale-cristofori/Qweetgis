@@ -63,6 +63,7 @@ class TweetLayer(QgsVectorLayer):
             progress = (feature_count * 100) / self.limit
             self.dlg.streamingPb.setValue(progress)
         else:
+            self.dlg.streamingPb.setRange(0, 0)
             feats_request = QgsFeatureRequest()
             feats_request.addOrderBy('time', ascending=False)
             feats_request.setLimit(2000)

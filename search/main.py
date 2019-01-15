@@ -366,6 +366,7 @@ class ThreadingMaster:
             self.tweets_auth = None
             self.api_obj = None
             self.dlg.streamLineEdit.setText('')
+            self.dlg.tweetsCountLabel.setText('')
             self.dlg.SearchTypeDd.setCurrentIndex(0)
             self.dlg.limitCheckBox.setChecked(False)
             self.dlg.limitDd.setCurrentIndex(0)
@@ -604,7 +605,7 @@ class ThreadingMaster:
         self.dlg.streamButton.setEnabled(True)
         self.dlg.saveLayerButton.setEnabled(True)
         self.dlg.streamingPb.setValue(0)
-        if self.limit is None:
+        if self.limit is None or (self.limit is not None and self.limit_type == 'dynamic'):
             self.dlg.streamingPb.setRange(0, 100)
         self.dlg.streamingPb.setEnabled(False)
         # destroys the layer instance for this session
@@ -755,12 +756,13 @@ class ThreadingMaster:
             # progress bar with numbers
             self.dlg.streamingPb.setRange(0, 100)
             self.dlg.streamingPb.setValue(0)
+            self.dlg.tweetsCountLabel.setText('')
         else:
             # progress bar showing busy indicator
             self.dlg.streamingPb.setRange(0, 0)
 
 
-    def update_progress_bar_value(self, value=None):
+    def update_progress_bar_value(self, value=None, tweets_count=0):
         """ 
         Slot for the update progress signal emitted from the
         streaming thread
@@ -770,6 +772,7 @@ class ThreadingMaster:
         :type value: int
         """
         self.dlg.streamingPb.setValue(value)
+        self.dlg.tweetsCountLabel.setText(str(tweets_count))
 
     def on_get_stream(self):
         """ 
@@ -791,6 +794,7 @@ class ThreadingMaster:
         """
         keywords = self.dlg.streamLineEdit.text().split()
         if len(keywords) == 0: 
+            EmptyTextMessageBox(self.app_name)
         else:
             self.dlg.streamButton.setEnabled(False)
             self.dlg.stopButton.setEnabled(True)

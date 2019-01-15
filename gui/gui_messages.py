@@ -18,7 +18,7 @@ class ConfigErrorMessageBox(QMessageBox):
     """autoexecuting message box when there is no access to config file"""
 
     def __init__(self, app_name=''):
-        """Constructor.
+        """Constructor
 
         :param app_name: the name of the plug-in to show on the 
         message box header
@@ -36,7 +36,7 @@ class UndefinedMessageBox(QMessageBox):
     """autoexecuting message box for undefined object (generic)"""
 
     def __init__(self, app_name='', undef_object=''):
-        """Constructor.
+        """Constructor
         
         :param app_name: the name of the plug-in to show on the 
         message box header
@@ -60,7 +60,7 @@ class ExportSuccessMessageBox(QMessageBox):
     """autoexecuting message box when export to layer successful"""
 
     def __init__(self, app_name='', layer_name=''):
-        """Constructor.
+        """Constructor
         
         :param app_name: the name of the plug-in to show on the 
         message box header
@@ -83,7 +83,7 @@ class ExportFailMessageBox(QMessageBox):
     """autoexecuting message box when export to layer successful"""
 
     def __init__(self, app_name='', layer_name='', export_error=''):
-        """Constructor.
+        """Constructor
         
         :param app_name: the name of the plug-in to show on the 
         message box header
@@ -110,7 +110,7 @@ class StreamErrorMessageBox(QMessageBox):
     """autoexecuting message box to report error in streaming shut down"""
 
     def __init__(self, app_name='', status_error=''):
-        """Constructor.
+        """Constructor
         
         :param app_name: the name of the plug-in to show on the 
         message box header
@@ -134,7 +134,7 @@ class CredentialsValidationMessageBox(QMessageBox):
     credentials do not follow the usual twitter API lenght"""
 
     def __init__(self, app_name='', validation_type='', parent_dialog=None):
-        """Constructor.
+        """Constructor
         
         :param app_name: the name of the plug-in to show on the 
         message box header
@@ -169,12 +169,12 @@ class CredentialsTestMessagebox(QMessageBox):
 class EmptyIntersectionMessageBox(QMessageBox):
     """
     autoexecuting message box telling the user the 
-    selected area for geostream is outside the plug-in default area#
+    selected area for geostream is outside the plug-in default area
        
     """
     
     def __init__(self, app_name=''):
-        """Constructor.
+        """Constructor
 
         :param app_name: The name of the plugin
         :type app_name: string
@@ -183,6 +183,25 @@ class EmptyIntersectionMessageBox(QMessageBox):
         super().__init__(QMessageBox.Critical, self.app_name,
                          'The selected area is outside allowed extent' \
                          ' (-180, -90, 180, 90)',
+                         QMessageBox.Ok, None)
+        self.exec_()
+
+
+class EmptyTextMessageBox(QMessageBox):
+    """
+    autoexecuting message box telling the user the 
+    search box for keyword search is empty
+    """
+    
+    def __init__(self, app_name=''):
+        """Constructor
+
+        :param app_name: The name of the plugin
+        :type app_name: string
+        """
+        self.app_name = app_name
+        super().__init__(QMessageBox.Warning, self.app_name,
+                         'The keyword search box is empty. \n Input at least one search keyword',
                          QMessageBox.Ok, None)
         self.exec_()
 
