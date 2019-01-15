@@ -1,6 +1,6 @@
 Plugin Builder Results
 
-Your plugin ThreadingMaster was created in:
+Your plugin Master was created in:
     /home/alessandro/Development/qgis-threading/threadingmaster
 
 Your QGIS plugin directory is located at:

@@ -96,11 +96,11 @@ class ThreadingMaster:
         self.oauth_dlg = OAuthCredentialsDialog()
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Threading Master')
+        self.menu = self.tr(u'&Geotweet')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'ThreadingMaster')
-        self.toolbar.setObjectName(u'ThreadingMaster')
-        self.app_name = (u'Qwitty')
+        self.toolbar = self.iface.addToolBar(u'Geotweet')
+        self.toolbar.setObjectName(u'Geotweet')
+        self.app_name = (u'Geotweet')
         # get user OS ['darwin', 'linux', 'win32'] and home directory
         self.user_os = platform
         self.home_dir = os.path.expanduser('~')
@@ -108,8 +108,6 @@ class ThreadingMaster:
         self.canvas = self.iface.mapCanvas()
         self.plugin_crs = QgsCoordinateReferenceSystem('EPSG:4326')
         self.plugin_extent = QgsRectangle(-180.00, -90, 180.00, 90)
-        print("operating system is {0}".format(self.user_os))
-        print("home dir is {0}".format(self.home_dir))
         self.credentials_validator = CredentialsValidator(app_name=self.app_name)
         # initialise tweepy classes
         self.credentials = None
@@ -223,7 +221,7 @@ class ThreadingMaster:
         icon_path = ':/plugins/threading_master/icon.svg'
         self.add_action(
             icon_path,
-            text=self.tr(u'Threading Master'),
+            text=self.tr(u'Geotweet'),
             callback=self.run_login,
             parent=self.iface.mainWindow())
     
@@ -305,7 +303,7 @@ class ThreadingMaster:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&Threading Master'),
+                self.tr(u'&Geotweet'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
@@ -381,7 +379,6 @@ class ThreadingMaster:
                 QgsProject.instance().setCrs(current_crs)
             self.canvas.setExtent(current_extent)
             self.canvas.refresh()
-            print('cancel button pressed')
     
     def compare_extents(self, current_extent):
         """
@@ -651,7 +648,6 @@ class ThreadingMaster:
             file_name = QFileDialog.getSaveFileName(self.dlg, "Save File",
             os.path.join(self.home_dir, "{0}.{1}".format(self.tweet_layer.name(), "gpkg")),
             "Geopackage (*.gpkg);; Shapefile (*.shp)")
-            print(file_name)
             if file_name[1] != '' and file_name[0] != '':
                 shp_export = ShpLayerExport(self.tweet_layer, file_name[0])
                 export_error = shp_export.export_layer()
@@ -795,7 +791,6 @@ class ThreadingMaster:
         """
         keywords = self.dlg.streamLineEdit.text().split()
         if len(keywords) == 0: 
-            print("no text found")
         else:
             self.dlg.streamButton.setEnabled(False)
             self.dlg.stopButton.setEnabled(True)

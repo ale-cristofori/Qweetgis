@@ -132,7 +132,6 @@ class PlaceTweetLayer(TweetLayer):
         try:
             if tweet['place'].bounding_box.coordinates[0][1][0] is not None:
                 self.rect = self.create_place_rect(tweet['place'])
-                print("tweet at location {0} found".format(str(tweet['place'].bounding_box.coordinates[0][1][0])))
                 self.feat.setGeometry(QgsGeometry.fromPointXY(
                     QgsPointXY(tweet['place'].bounding_box.coordinates[0][1][0],
                             tweet['place'].bounding_box.coordinates[0][1][1])))

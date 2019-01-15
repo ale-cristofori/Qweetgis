@@ -9,15 +9,15 @@
 [general]
 name=geotweet
 qgisMinimumVersion=3.0
-description=A QGIS Plugin with threading
+description=A QGIS Plugin for Twitter Streaming API
 version=0.1
 author=Alessandro Cristofori
 email=alessandro.cristofori@halliburton.com
 
-about=This is a test plugin made for the tutorial about threading in QGIS
+about=This plugin allow to download and visualise on a map twitter messages that contain coordinates in real time, without locking/freezing the main thread. The plug-in uses Twitter's Data Streaming API. The plug-in is based on the third party Python package Tweepy, thishas to be installed separately, instructions in the docs. Also, to access the Twitter API you will need the two API keys Twitter and the two OAuth tokens. This plug-in is based on the geotweet plug-in created for older versions of QGIS by Riccardo Klinger, geolicious.
 
-tracker=https://github.com/ale-cristofori/qgis-threading-master
-repository=https://github.com/ale-cristofori/qgis-threading-master
+tracker=https://github.com/ale-cristofori/geotweet
+repository=https://github.com/ale-cristofori/geotweet
 # End of mandatory metadata
 
 # Recommended items:
@@ -28,8 +28,8 @@ repository=https://github.com/ale-cristofori/qgis-threading-master
 # Tags are comma separated with spaces allowed
 tags=python
 
-homepage=http://homepage
-category=Plugins
+homepage=https://ale-cristofori.github.io/geotweet/
+category=Web
 icon=icon.svg
 # experimental flag
 experimental=True
