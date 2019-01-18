@@ -7,12 +7,12 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=geotweet
+name=Qweetgis
 qgisMinimumVersion=3.0
 description=A QGIS Plugin for Twitter Streaming API
 version=0.1
 author=Alessandro Cristofori
-email=compatt84@gmail.com
+email=alessandro.cristofori84@gmail.com
 
 about=This plugin allow to download and visualise on a map twitter messages that contain coordinates in real time, without locking/freezing the main thread. The plug-in uses Twitter's Data Streaming API. The plug-in is based on the third party Python package Tweepy, thishas to be installed separately, instructions in the docs. Also, to access the Twitter API you will need the two API keys Twitter and the two OAuth tokens. This plug-in is based on the geotweet plug-in created for older versions of QGIS by Riccardo Klinger, geolicious.
 
