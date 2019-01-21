@@ -14,6 +14,8 @@ For Windows (with OSGEO4W)
 [Option 1](https://www.lutraconsulting.co.uk/blog/2016/03/02/installing-third-party-python-modules-in-qgis-windows/) 
 [Option 2](https://gis.stackexchange.com/questions/246414/install-third-party-python-modules-in-qgis-windows) 
 
+If none of the above works then I suggest you download the Tweepy module (in format tar.gz) from [here](https://pypi.org/project/tweepy/) extract the directory containing the module tweepy-3.7.0, in the OSGEO4W directory execute the command `p3_env` to set Python3 as the global interpreter, navigate to the module direcory and execute `python3 setup.py install`. This should install Tweepy in your OSGEO4W python. I tested this method and it worked on a Win10 machine.    
+
 For Windows (standalone QGIS install)
 [Option 3](https://gis.stackexchange.com/questions/273870/osgeo4w-shell-with-python3/277842#277842) -> this worked for me on Windows
 
@@ -25,17 +27,6 @@ QGIS Python is the system one, just do
 Running a desktop Twitter app is not easy for authentication. The connection to the API requires the consumer keys which are unique to each Twitter application and have to be secretly stored, thus making it very difficult for a desktop application to developer ones. On top of it, using a Twitter app requires OAuth authentication which is granted by the user to the application with two tokens generated from Twitter. Though I tried to set up a seamless plug-in authentication for the reasons above you can use Qweetgis only with your own Twitter API developer keys and generated OAuth tokens. To obtain the Twitter developer keys you will have to sign-up for a developer account and create a Twitter App. 
 
 [Here is how to do it](https://developer.twitter.com/en/account/get-started)
-
-Qweetgis can work behind a proxy (provided that it grants access to Twitter), the functionality is offered by Tweepy. In order to set-up the proxy connection, in the root folder of the plugin you will find the `config.json` file in the `config/` folder. Under the `PROD` section insert your proxy URL, for example:
-
-    "PROD": {
-	    "CREDENTIALS": {
-	    ...
-	    },
-    "PROXY": "http(s)://<your_proxy_server>:<your_proxy_port>"
-    },
-    /*in case your proxy requires authentication*/
-    "<your_username>:<your_password>@<your_proxy_server>:<your_proxy_port>"
 
 
 **What Qweetgis can do**
