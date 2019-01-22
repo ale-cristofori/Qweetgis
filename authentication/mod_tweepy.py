@@ -4,7 +4,6 @@ import tweepy
 import pdb
 import simplejson
 import os
-import time
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtRemoveInputHook
 from PyQt5.QtWidgets import QMessageBox
 from ..gui.gui_messages import ConfigErrorMessageBox
@@ -201,28 +200,32 @@ class PlaceStreamListener(BaseStreamListener):
             :param status: the status returned from twitter
             :type status: Object
         """
-        while self.stream_on:
-            output_object = {
-                'status_id': status.id_str,
-                'tweet': self.get_tweet_text(status),
-                'user': status.user.screen_name,
-                'place': status.place,
-                'localization': status.user.location,
-                'time_zone': status.user.time_zone,
-                'time': status.timestamp_ms
-            }
-            if status.place is not None:
-                self.counter += 1
-                tweets_count = self.counter
-                self.tweet_signals.tweet_received.emit(output_object)
-                self.tweet_signals.update_progress.emit(None, tweets_count)
-                if self.limit_type == 'absolute':
-                    progress = (self.counter * 100) / self.limit
-                    self.tweet_signals.update_progress.emit(progress, tweets_count)
-                    self.check_limit()
-            return True
-        self.tweet_signals.stop_stream.emit()
-        return False
+        try:
+            while self.stream_on:
+                output_object = {
+                    'status_id': status.id_str,
+                    'tweet': self.get_tweet_text(status),
+                    'user': status.user.screen_name,
+                    'place': status.place,
+                    'localization': status.user.location,
+                    'time_zone': status.user.time_zone,
+                    'time': status.timestamp_ms
+                }
+                if status.place is not None:
+                    self.counter += 1
+                    tweets_count = self.counter
+                    self.tweet_signals.tweet_received.emit(output_object)
+                    self.tweet_signals.update_progress.emit(None, tweets_count)
+                    if self.limit_type == 'absolute':
+                        progress = (self.counter * 100) / self.limit
+                        self.tweet_signals.update_progress.emit(progress, tweets_count)
+                        self.check_limit()
+                return True
+            self.tweet_signals.stop_stream.emit()
+            return False
+        except Exception as e:
+            self.tweet_signals.stream_error.emit("Fatal Error:")
+            return False
 
 class GeoStreamListener(BaseStreamListener):
     def __init__(self, tweet_to_layer, shut_down_signal, error_signal,
