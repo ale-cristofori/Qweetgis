@@ -29,7 +29,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Geotweet</string>
+   <string>Qweetgis</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <property name="sizeConstraint">

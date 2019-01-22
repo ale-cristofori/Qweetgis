@@ -50,7 +50,6 @@ from ..authentication.mod_tweepy import TweetsHandler, GeoStreamListener, \
     PlaceStreamListener, TweetsAuthHandler
 from ..layers.tweet_layers import GeoTweetLayer, PlaceTweetLayer
 from ..layers.layer_export import ShpLayerExport
-# from ..gui.gui_messages import *
 
 # Import the code for the dialog
 from ..gui.threading_master_dialog import ThreadingMasterDialog
@@ -59,7 +58,7 @@ from ..gui.oauth_dialog import OAuthCredentialsDialog
 
 class Signals(QObject):
     """General pyQtsignal class"""
-    stream_on = pyqtSignal()
+    stream_off = pyqtSignal()
 
 
 class ThreadingMaster:
@@ -96,11 +95,11 @@ class ThreadingMaster:
         self.oauth_dlg = OAuthCredentialsDialog()
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Geotweet')
+        self.menu = self.tr(u'&Qweetgis')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'Geotweet')
-        self.toolbar.setObjectName(u'Geotweet')
-        self.app_name = (u'Geotweet')
+        self.toolbar = self.iface.addToolBar(u'Qweetgis')
+        self.toolbar.setObjectName(u'Qweetgis')
+        self.app_name = (u'Qweetgis')
         # get user OS ['darwin', 'linux', 'win32'] and home directory
         self.user_os = platform
         self.home_dir = os.path.expanduser('~')
@@ -221,7 +220,7 @@ class ThreadingMaster:
         icon_path = ':/plugins/threading_master/icon.svg'
         self.add_action(
             icon_path,
-            text=self.tr(u'Geotweet'),
+            text=self.tr(u'Qweetgis'),
             callback=self.run_login,
             parent=self.iface.mainWindow())
     
@@ -235,7 +234,7 @@ class ThreadingMaster:
         self.dlg.stopButton.setEnabled(False) 
         self.dlg.saveLayerButton.setVisible(False) 
         self.dlg.saveLayerButton.setEnabled(False) # change it to false when finished debugg ing
-        self.dlg.stopButton.clicked.connect(self.emit_stop) 
+        self.dlg.stopButton.clicked.connect(self.emit_stop_from_worker) 
         self.dlg.streamButton.clicked.connect(self.on_get_stream) 
         self.dlg.saveLayerButton.clicked.connect(self.on_save_layer)
         self.dlg.streamButton.setIcon(QApplication.style().standardIcon(QStyle.SP_MediaPlay))
@@ -303,7 +302,7 @@ class ThreadingMaster:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&Geotweet'),
+                self.tr(u'&Qweetgis'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
@@ -362,7 +361,7 @@ class ThreadingMaster:
         else:
             """user closes the application ("close button")
             reset all the variables as before initialisation"""
-            self.emit_stop()
+            self.reset_main_dialog()
             self.tweets_auth = None
             self.api_obj = None
             self.dlg.streamLineEdit.setText('')
@@ -375,6 +374,7 @@ class ThreadingMaster:
             self.dlg.limitSb.setEnabled(False)
             self.dlg.keywordRadioButton.setChecked(True)
             self.dlg.SearchTypeDd.setCurrentIndex(0)
+            # self.dlg.stopButton.disconnect() 
             self.tweet_layer = None
             if current_crs.authid() != 'EPSG:4326':
                 QgsProject.instance().setCrs(current_crs)
@@ -476,6 +476,7 @@ class ThreadingMaster:
 
         """
         self.oauth_dlg.getCredentialsButton.clicked.disconnect()
+
         self.oauth_dlg.accepted.disconnect()
         self.credentials_validator.set_credentials(credentials) 
         self.credentials_validator.set_parent_dialog(self.oauth_dlg)
@@ -591,15 +592,11 @@ class ThreadingMaster:
         else:
             self.oauth_dlg.buttonBox.buttons()[0].setEnabled(True)
     
-    def emit_stop(self):
+    def reset_main_dialog(self):
         """
-        Slot for the emit stop signal, emitted from the stream class and 
-        from the pause button, the slot itself emits a signal
-        to stop the streaming in a separate thread, resets buttons
-        on the main dialog
+        Slot for the emit stop signal, emitted only from the stream class,
+        and resets buttons on the main dialog
         """
-        # signal to stop the streaming
-        self.signals.stream_on.emit()
         # resets the dialog buttons to non streaming session
         self.dlg.stopButton.setEnabled(False)
         self.dlg.streamButton.setEnabled(True)
@@ -610,6 +607,16 @@ class ThreadingMaster:
         self.dlg.streamingPb.setEnabled(False)
         # destroys the layer instance for this session
         self.tweet_layer = None
+    
+    def emit_stop_from_worker(self):
+        """ 
+        Slot from the worker(main thread) for the clicked pause button 
+        this slot emits a stop signal to pause the streaming on the 
+        listener thread and resets the main ui
+        """
+        self.signals.stream_off.emit()
+        # resets the dialog buttons to non streaming session
+        self.reset_main_dialog()
 
     def tweet_to_file(self, message):
         """Slot for the tweet file signal write to text file the tweets"""
@@ -629,6 +636,7 @@ class ThreadingMaster:
         try:
             self.tweet_layer.add_tweet_feature(geo_tweet)
             if self.tweet_layer is not None and (self.limit_type != 'dynamic' or self.search_type != 'geo'):
+            # if self.tweet_layer is not None and self.limit_type == None:
                 self.tweet_layer.highlight_tweet_feature(geo_tweet, self.iface)
         except:
             pass
@@ -640,6 +648,7 @@ class ThreadingMaster:
         :param status_error: the error code produced from the twitter API
         :type status_error: int 
         """
+        self.reset_main_dialog()
         StreamErrorMessageBox(self.app_name, status_error)
         return False
     
@@ -713,22 +722,22 @@ class ThreadingMaster:
         """
         if src_type == "_geo_tweets":
             stream_listener = GeoStreamListener(self.tweet_to_layer,
-            self.signals.stream_on,
+            self.signals.stream_off,
             self.on_stream_error,
             self.update_progress_bar_value,
             self.tweet_to_file,
-            self.emit_stop,
+            self.reset_main_dialog,
             api=self.api_obj,
             limit=self.limit,
             limit_type=self.limit_type)
         else:
             stream_listener = PlaceStreamListener(
             self.tweet_to_layer,
-            self.signals.stream_on,
+            self.signals.stream_off,
             self.on_stream_error,
             self.update_progress_bar_value,
             self.tweet_to_file,
-            self.emit_stop,
+            self.reset_main_dialog,
             api=self.api_obj,
             limit=self.limit,
             limit_type=self.limit_type)
@@ -737,7 +746,7 @@ class ThreadingMaster:
         if self.search_type == 'keyword':
             myStream.filter(track=src_kw, is_async=True)
         if self.search_type == 'geo':
-            myStream.filter(locations=src_bbox, is_async=True)
+            result = myStream.filter(locations=src_bbox, is_async=True)
     
     def enable_progress_bar(self, limit):
         """

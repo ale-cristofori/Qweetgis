@@ -4,6 +4,7 @@ import tweepy
 import pdb
 import simplejson
 import os
+import time
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtRemoveInputHook
 from PyQt5.QtWidgets import QMessageBox
 from ..gui.gui_messages import ConfigErrorMessageBox
@@ -14,6 +15,7 @@ class Signals(QObject):
     tweet_file = pyqtSignal(str)
     stream_error = pyqtSignal(int)
     update_progress = pyqtSignal(int, int)
+    stop_stream = pyqtSignal()
 
 
 class TweetsHandler:
@@ -22,6 +24,10 @@ class TweetsHandler:
         self.consumer_token = ''
         self.consumer_secret = ''
         self.auth = tweepy.OAuthHandler(self.consumer_token, self.consumer_secret)
+        redirect_url = self.auth.get_authorization_url()
+        verifier = self.auth.request_token['oauth_verifier']
+        request_token = self.auth.request_token['oauth_token']
+        self.auth.request_token = { 'oauth_token' : token, 'oauth_token_secret' : verifier }
         try:
             second_public_token=''
             second_secret_token=''
@@ -63,8 +69,8 @@ class TweetsHandler:
 
 class BaseStreamListener(tweepy.StreamListener):
     """ Base subclass of tweepy stream listener performing the stream process """
-    def __init__(self, tweet_to_layer, stream_signal, error_signal, update_progress,
-                 tweet_to_file, emit_stop, api=None, limit=None, limit_type=None):
+    def __init__(self, tweet_to_layer, shut_down_signal, error_signal, update_progress,
+                 tweet_to_file, reset_main_dialog, api=None, limit=None, limit_type=None):
         """ 
         Constructor the class is initalised with the parameters needed to start a 
         streaming session
@@ -73,10 +79,10 @@ class BaseStreamListener(tweepy.StreamListener):
         responds when a new tweet is received from the stream
         :type tweet_to_layer: function
 
-        :param stream_signal: the signal coming from the main thread that 
+        :param shut_down_signal: the signal coming from the main thread that 
         sets the parameter stream on to False, pausing the current
         streaming session
-        :type stream_signal: pyQtsignal
+        :type shut_down_signal: pyQtsignal
 
         :param error_signal: the signal emitted from this class to the main 
         thread when an error occurs during streaming 
@@ -91,9 +97,9 @@ class BaseStreamListener(tweepy.StreamListener):
         tweets to a text file 
         :type tweet_to_file: function
 
-        :param emit_stop: the slot on the main thread that stops the stream, 
-        emitting the stream_signal that stops the stream on this thread
-        type emit_stop: function
+        :param reset_main_dialog: the slot on the main thread that stops the stream, 
+        emitting the shut_down_signal that stops the stream on this thread
+        type reset_main_dialog: function
 
         :param api: the tweepy API object required to connect to twitter and
         perform any action
@@ -110,7 +116,7 @@ class BaseStreamListener(tweepy.StreamListener):
         self.tweet_to_layer = tweet_to_layer
         self.tweet_to_file = tweet_to_file
         self.update_progress = update_progress
-        self.emit_stop = emit_stop
+        self.reset_main_dialog = reset_main_dialog
         self.limit = limit
         self.limit_type = limit_type
         self.error_signal = error_signal
@@ -119,15 +125,16 @@ class BaseStreamListener(tweepy.StreamListener):
         self.tweet_signals.tweet_file.connect(self.tweet_to_file)
         self.tweet_signals.update_progress.connect(self.update_progress)
         self.tweet_signals.stream_error.connect(self.error_signal)
-        self.stream_signal = stream_signal
-        self.stream_signal.connect(self.set_stream)
+        self.tweet_signals.stop_stream.connect(self.reset_main_dialog)
+        self.shut_down_signal = shut_down_signal
+        self.shut_down_signal.connect(self.shut_stream)
         self.stream_on = True
         self.counter = 0
         if self.limit_type == 'absolute':
             self.stream_on = bool(self.stream_on and
                                   self.counter < self.limit)
                                   
-    def set_stream(self):
+    def shut_stream(self):
         """ slot for the stop to tweet signal coming from the main thread"""
         self.stream_on = False
     
@@ -153,7 +160,7 @@ class BaseStreamListener(tweepy.StreamListener):
         the user has been reached or not, if so stops the tweet stream 
         
         """
-        self.stream_on = bool(self.stream_on and self.counter < self.limit)
+        self.stream_on = bool(self.counter < self.limit)
     
     def get_tweet_text(self, status):
         """ 
@@ -177,12 +184,12 @@ class BaseStreamListener(tweepy.StreamListener):
 
 
 class PlaceStreamListener(BaseStreamListener):
-    def __init__(self, tweet_to_layer, stream_signal,
+    def __init__(self, tweet_to_layer, shut_down_signal,
                  error_signal, update_progress, tweet_to_file, 
-                 emit_stop, api=None, limit=None, limit_type=None):
-        super().__init__(tweet_to_layer, stream_signal,
+                 reset_main_dialog, api=None, limit=None, limit_type=None):
+        super().__init__(tweet_to_layer, shut_down_signal,
                          error_signal, update_progress, tweet_to_file,
-                         emit_stop, api, limit, limit_type)
+                         reset_main_dialog, api, limit, limit_type)
 
     def on_status(self, status):
         """ 
@@ -194,40 +201,35 @@ class PlaceStreamListener(BaseStreamListener):
             :param status: the status returned from twitter
             :type status: Object
         """
-        try: 
-            while self.stream_on:
-                output_object = {
-                    'status_id': status.id_str,
-                    'tweet': self.get_tweet_text(status),
-                    'user': status.user.screen_name,
-                    'place': status.place,
-                    'localization': status.user.location,
-                    'time_zone': status.user.time_zone,
-                    'time': status.timestamp_ms
-                }
-                if status.place is not None:
-                    self.counter += 1
-                    tweets_count = self.counter
-                    self.tweet_signals.tweet_received.emit(output_object)
-                    self.tweet_signals.update_progress.emit(None, tweets_count)
-                    if self.limit_type == 'absolute':
-                        progress = (self.counter * 100) / self.limit
-                        self.tweet_signals.update_progress.emit(progress, tweets_count)
-                        self.check_limit()
-                return True
-            self.emit_stop()
-            return False
-        except Exception as e:
-            self.tweet_signals.stream_error.emit("Fatal Error")
-            return False
-
+        while self.stream_on:
+            output_object = {
+                'status_id': status.id_str,
+                'tweet': self.get_tweet_text(status),
+                'user': status.user.screen_name,
+                'place': status.place,
+                'localization': status.user.location,
+                'time_zone': status.user.time_zone,
+                'time': status.timestamp_ms
+            }
+            if status.place is not None:
+                self.counter += 1
+                tweets_count = self.counter
+                self.tweet_signals.tweet_received.emit(output_object)
+                self.tweet_signals.update_progress.emit(None, tweets_count)
+                if self.limit_type == 'absolute':
+                    progress = (self.counter * 100) / self.limit
+                    self.tweet_signals.update_progress.emit(progress, tweets_count)
+                    self.check_limit()
+            return True
+        self.tweet_signals.stop_stream.emit()
+        return False
 
 class GeoStreamListener(BaseStreamListener):
-    def __init__(self, tweet_to_layer, stream_signal, error_signal,
-                 update_progress, tweet_to_file, emit_stop,
+    def __init__(self, tweet_to_layer, shut_down_signal, error_signal,
+                 update_progress, tweet_to_file, reset_main_dialog,
                  api=None, limit=None, limit_type=None):
-        super().__init__(tweet_to_layer, stream_signal, error_signal,
-                         update_progress, tweet_to_file, emit_stop, 
+        super().__init__(tweet_to_layer, shut_down_signal, error_signal,
+                         update_progress, tweet_to_file, reset_main_dialog, 
                          api, limit, limit_type)
     
     def on_status(self, status):
@@ -253,7 +255,7 @@ class GeoStreamListener(BaseStreamListener):
                         self.tweet_signals.update_progress.emit(progress, tweets_count)
                         self.check_limit()
                 return True
-            self.emit_stop()
+            self.tweet_signals.stop_stream.emit()
             return False
         except Exception as e:
             self.tweet_signals.stream_error.emit("Fatal Error:")
@@ -344,13 +346,14 @@ class TestTweetsAuthHandler(TweetsAuthHandler):
             return(QMessageBox.Critical, message)
 
 # if __name__ == "__main__":
+#    tweets_handler = TweetsHandler()
 #     cred = {
 #         'CONSUMER_KEY': '',
 #         'CONSUMER_KEY_SECRET': '',
 #         'ACCESS_TOKEN': '',
 #         'ACCESS_TOKEN_SECRET': ''
 #         }
-#     tweets_handler = TestTweetsAuthHandler(**cred)
+#     
 #     tweets_handler.test_credentials()
 #    print('success')
     # js_handler = JSHandler()
